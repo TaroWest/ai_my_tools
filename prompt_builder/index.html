@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>指示文ビルダー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ECEAE4;--card:#FBFAF8;--ink:#17140F;--muted:#726E66;--line:#DAD8D1;
+    --accent:#F0530A;--accent-dark:#C7430A;--accent-soft:rgba(240,83,10,0.10);
+    --radius:6px;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Space Grotesk','Noto Sans JP',sans-serif;
+    --body:'Inter','Noto Sans JP',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;justify-content:center;padding:24px 16px 120px;}
+  .app{width:100%;max-width:680px;}
+  .masthead{margin-bottom:22px;}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-dark);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .kicker::before{content:"";width:20px;height:2px;background:var(--accent);display:inline-block;}
+  .masthead h1{font-family:var(--disp);font-weight:700;font-size:clamp(26px,6vw,36px);line-height:1.05;letter-spacing:-0.02em;margin:0;}
+  .masthead p{color:var(--muted);font-size:14px;margin:8px 0 0;}
+  .console{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 1px 0 rgba(23,20,15,.03),0 18px 40px -30px rgba(23,20,15,.35);overflow:hidden;}
+  .bar{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);}
+  .stepnum{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;}
+  .stepnum .of{color:var(--muted);}
+  .ruler{display:flex;gap:5px;flex:1;align-items:center;}
+  .tick{height:8px;flex:1;background:var(--line);border-radius:2px;transition:background .3s ease;}
+  .tick.done{background:var(--ink);}
+  .tick.active{background:var(--accent);}
+  .remain{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;}
+  .stage{padding:26px 22px 22px;}
+  .lead{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:-0.01em;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 20px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:520px){.grid{grid-template-columns:1fr;}}
+  .purpose{text-align:left;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 15px;font-family:var(--body);color:var(--ink);transition:border-color .15s,transform .1s,box-shadow .15s;display:flex;flex-direction:column;gap:3px;}
+  .purpose:hover{border-color:var(--accent);box-shadow:0 6px 18px -14px rgba(240,83,10,.6);}
+  .purpose:active{transform:translateY(1px);}
+  .purpose .pt{font-weight:600;font-size:15px;}
+  .purpose .pd{font-size:12px;color:var(--muted);}
+  .purpose .pn{font-family:var(--mono);font-size:11px;color:var(--accent-dark);font-weight:600;}
+  .qlabel{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+  .qtext{font-family:var(--disp);font-weight:600;font-size:clamp(20px,4.8vw,25px);letter-spacing:-0.015em;line-height:1.28;margin:0 0 6px;}
+  .qhint{color:var(--muted);font-size:13px;margin:0 0 18px;}
+  .qoptional{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin-left:8px;vertical-align:middle;letter-spacing:.05em;}
+  textarea,input[type=text]{width:100%;font-family:var(--body);font-size:15px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;resize:vertical;line-height:1.5;transition:border-color .15s,box-shadow .15s;}
+  textarea{min-height:120px;}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .keyhint{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px;}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;}
+  .chip{cursor:pointer;font-family:var(--body);font-size:14px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:22px;padding:9px 15px;transition:all .12s;display:flex;align-items:center;gap:7px;user-select:none;}
+  .chip:hover{border-color:var(--accent);}
+  .chip .box{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--line);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;}
+  .chip.single .box{border-radius:50%;}
+  .chip.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-dark);font-weight:600;}
+  .chip.sel .box{border-color:var(--accent);background:var(--accent);}
+  .chip.sel .box::after{content:"";width:6px;height:6px;border-radius:1px;background:#fff;}
+  .chip.single.sel .box::after{border-radius:50%;}
+  .multihint{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:11px;}
+  .nav{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(236,234,228,0) 0%,var(--paper) 34%);padding:16px;display:flex;justify-content:center;pointer-events:none;}
+  .navinner{width:100%;max-width:680px;display:flex;gap:10px;justify-content:space-between;pointer-events:auto;}
+  button.btn{font-family:var(--body);font-size:15px;font-weight:600;cursor:pointer;border-radius:var(--radius);padding:13px 22px;transition:all .15s;border:1px solid transparent;}
+  .btn.back{background:transparent;color:var(--muted);border-color:var(--line);}
+  .btn.back:hover{color:var(--ink);border-color:var(--muted);}
+  .btn.next{background:var(--accent);color:#fff;box-shadow:0 8px 20px -10px rgba(240,83,10,.8);}
+  .btn.next:hover{background:var(--accent-dark);}
+  .btn.next:disabled{background:var(--line);color:#a6a29a;cursor:not-allowed;box-shadow:none;}
+  .btn.ghost{background:transparent;color:var(--accent-dark);border-color:var(--line);}
+  .btn.ghost:hover{border-color:var(--accent);}
+  .spacer{flex:1;}
+  .result-head{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-dark);font-weight:600;margin-bottom:14px;}
+  .result-head::after{content:"";flex:1;height:1px;background:var(--line);}
+  .output{font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px;white-space:pre-wrap;word-break:break-word;}
+  .reveal-line{opacity:0;transform:translateY(6px);animation:rise .4s ease forwards;}
+  @keyframes rise{to{opacity:1;transform:none;}}
+  .copied{color:var(--accent-dark);}
+  .rules-toggle{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);margin-bottom:14px;cursor:pointer;user-select:none;}
+  .rules-toggle input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+  .rules-toggle:hover{color:var(--ink);}
+  .common-settings{border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;margin-bottom:16px;background:#fff;}
+  .cs-title{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-dark);font-weight:600;margin-bottom:13px;}
+  .cs-row{margin-bottom:14px;}
+  .cs-label{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:7px;}
+  .common-settings input[type=text]{font-size:14px;padding:10px 12px;}
+  .common-settings .chips{gap:8px;}
+  .common-settings .chip{font-size:13px;padding:7px 13px;}
+  .common-settings .rules-toggle{margin:2px 0 0;}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+  .fade{animation:fade .28s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="masthead">
+    <div class="kicker">Prompt Builder</div>
+    <h1>指示文ビルダー</h1>
+    <p>質問に順番に答えると、コピーできる指示文ができあがります。</p>
+  </div>
+  <div class="console">
+    <div class="bar" id="bar" style="display:none;">
+      <span class="stepnum"><span id="cur">01</span><span class="of"> / <span id="total">06</span></span></span>
+      <div class="ruler" id="ruler"></div>
+      <span class="remain" id="remain"></span>
+    </div>
+    <div class="stage" id="stage"></div>
+  </div>
+</div>
+<div class="nav" id="nav" style="display:none;">
+  <div class="navinner">
+    <button class="btn back" id="backBtn">戻る</button>
+    <div class="spacer"></div>
+    <button class="btn next" id="nextBtn">次へ</button>
+  </div>
+</div>
+<script>
+/* ---------- タスクの種類 ---------- */
+const purposes = [
+  {id:"research", n:"01", t:"調査・リサーチ", d:"調べて整理してもらう"},
+  {id:"create",   n:"02", t:"作成",         d:"文章・コード・資料をつくる"},
+  {id:"analyze",  n:"03", t:"分析",         d:"データや状況を読み解く"},
+  {id:"summarize",n:"04", t:"要約・整理",   d:"既存の内容をまとめる"},
+  {id:"improve",  n:"05", t:"添削・改善",   d:"成果物を見て直す"},
+  {id:"consult",  n:"06", t:"相談・壁打ち", d:"一緒に考える"},
+];
+
+/* type: text / textarea / single / multi ／ role:"goal" は先頭の依頼文 */
+const bank = {
+  research:[
+    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何を調べたい？",hint:"知りたいこと・テーマを一言で",placeholder:"例：GA4の同意モードの最新仕様を知りたい"},
+    {id:"use",section:"目的（何に使う）",type:"textarea",
+      q:"調べた結果は何に使う？",hint:"目的が分かると精度が上がります",placeholder:"例：クライアント提案の裏付けにしたい"},
+    {id:"depth",section:"深さ・範囲",type:"single",
+      q:"どこまで調べる？",options:["ざっくり概要","網羅的にしっかり","比較して整理","最新情報を重視"]},
+    {id:"format",section:"出力形式",type:"multi",
+      q:"どんな形で出してほしい？",options:["文章で解説","表で比較","箇条書き","事実・データ・仮説・意見を分けて","参考リンク付き"]},
+    {id:"limit",section:"情報源・制約",type:"textarea",
+      q:"情報源や制約はある？",hint:"例：一次情報を優先、日本の事例中心、公式ドキュメント基準",placeholder:"なければ空欄でOK"},
+  ],
+  create:[
+    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何を作る？",hint:"成果物を具体的に",placeholder:"例：note記事／SQL／提案資料の構成／案内メール"},
+    {id:"who",section:"相手・用途",type:"textarea",
+      q:"誰向け・どこで使う？",hint:"読み手や利用シーン",placeholder:"例：martech初心者向け、社内提案の場で"},
+    {id:"format",section:"形式・分量",type:"single",
+      q:"どんな形式で？",options:["文章","箇条書き","コード","表","ステップ手順","構成案だけ"]},
+    {id:"tone",section:"トーン・スタイル",type:"single",
+      q:"トーンは？",options:["丁寧に詳しく","簡潔に要点","専門的に","カジュアルに","おまかせ"]},
+    {id:"include",section:"含めたい／避けたい要素",type:"textarea",
+      q:"入れたい・外したい要素は？",hint:"キーワード、NG表現、分量の目安など",placeholder:"なければ空欄でOK"},
+  ],
+  analyze:[
+    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何を分析したい？",placeholder:"例：先月の流入元別CVRの傾向を知りたい"},
+    {id:"material",section:"対象データ・材料",type:"textarea",
+      q:"分析する材料は？",hint:"数値、テーブル、文章など。貼れるものは貼ってOK",placeholder:"例：BigQueryの集計結果を貼る予定"},
+    {id:"angle",section:"知りたい観点",type:"multi",
+      q:"どんな観点で見てほしい？",options:["原因・要因","傾向・変化","比較","改善の示唆","異常・課題の発見"]},
+    {id:"format",section:"出力形式",type:"single",
+      q:"どう出す？",options:["結論から要点","表で整理","事実・データ・仮説・意見を分けて","ロジックも見せて"]},
+    {id:"limit",section:"制約・前提",type:"textarea",
+      q:"前提や制約は？",placeholder:"なければ空欄でOK"},
+  ],
+  summarize:[
+    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何をまとめたい？",hint:"対象を書く（本文はこの後の会話で貼ってもOK）",placeholder:"例：この議事録／長い記事／複数の資料"},
+    {id:"aim",section:"目的",type:"textarea",
+      q:"何のためにまとめる？",placeholder:"例：後で見返す用／人に共有する用"},
+    {id:"how",section:"まとめ方",type:"single",
+      q:"どうまとめる？",options:["短く要約","論点を整理","見出しで構造化","箇条書き","表に整理"]},
+    {id:"length",section:"分量・粒度",type:"single",
+      q:"どのくらいの分量？",options:["3行で","ひと段落で","しっかり詳しく","元の半分くらい"]},
+    {id:"note",section:"残したいポイント・注意",type:"textarea",
+      q:"落としたくない要素は？",placeholder:"なければ空欄でOK"},
+  ],
+  improve:[
+    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何を直したい？",hint:"対象と、どうしたいか（本文はこの後貼ってもOK）",placeholder:"例：この文章をもっと分かりやすくしたい"},
+    {id:"angle",section:"見てほしい観点",type:"multi",
+      q:"どの観点でチェックする？",options:["わかりやすさ","論理・構成","誤り・事実確認","トーン・言い回し","簡潔さ"]},
+    {id:"scope",section:"手を入れる範囲",type:"single",
+      q:"どこまで直す？",options:["指摘だけ","修正案も提示","全面的に書き直し"]},
+    {id:"tone",section:"仕上がりの方向",type:"single",
+      q:"どう仕上げる？",options:["元の雰囲気を保つ","もっと丁寧に","もっと簡潔に","もっと専門的に"]},
+    {id:"limit",section:"残すもの・制約",type:"textarea",
+      q:"変えてほしくない部分は？",placeholder:"なければ空欄でOK"},
+  ],
+  consult:[
+    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+      q:"相談したいことは？",hint:"テーマや悩みを一言で",placeholder:"例：note のマネタイズの進め方を考えたい"},
+    {id:"ctx",section:"状況・前提",type:"textarea",
+      q:"今の状況・前提は？",placeholder:"例：フォロワー◯人、記事は◯本公開済み"},
+    {id:"want",section:"ほしいもの",type:"single",
+      q:"何がほしい？",options:["アイデアを広げる","選択肢を整理","メリット/デメリット比較","意見・おすすめ","考えの壁打ち"]},
+    {id:"style",section:"進め方",type:"single",
+      q:"どう進める？",options:["まず質問を返してほしい","一気に案を出して","段階的に一緒に"]},
+    {id:"limit",section:"制約・前提",type:"textarea",
+      q:"制約や外せない条件は？",placeholder:"なければ空欄でOK"},
+  ],
+};
+
+/* ---------- 共通ルール（全タスク共通・ハルシネーション対策） ---------- */
+const COMMON_RULES = `【共通ルール】
+・日本語で回答してください。
+・過度な同意やお世辞は不要。必要な指摘や反論は率直に述べてください。
+・事実と推測を区別し、確信が持てない点は推測で補わず「不明」と明記してください。
+・数値・固有名詞・日付・出典などの具体情報は、根拠がなければ創作せず「要確認」としてください。
+・情報が存在しない場合は、無理に答えを作らないでください。`;
+
+/* ---------- 説明レベル ---------- */
+const LITERACY = [
+  {v:"高校生向け", rule:"高校生にも理解できるよう、平易な言葉と具体例を用いて説明してください。専門用語には短い補足を付けてください。"},
+  {v:"社会人・低リテラシー", rule:"その分野の前提知識が少ない社会人向けに、専門用語は最小限にし、必要な用語には簡単な説明を添えてください。"},
+  {v:"社会人・高リテラシー", rule:"その分野に精通した社会人向けに、基本的な前提説明は省き、要点と専門的な内容を簡潔に述べてください。"},
+];
+
+/* ---------- 全タスク共通の質問（各フローの末尾に追加） ---------- */
+const COMMON_QUESTIONS = [
+  {id:"__role",section:"役割",type:"text",common:true,
+    q:"どんな立場・専門家として答えてほしい？",hint:"任意。指定すると指示文の冒頭に役割として入ります",placeholder:"例：GA4に詳しいマーケティングアナリスト"},
+  {id:"__lit",section:"説明レベル",type:"single",required:true,common:true,
+    q:"あなたのリテラシー（説明レベル）は？",hint:"回答の噛み砕き具合が変わります",
+    options:["高校生向け","社会人・低リテラシー","社会人・高リテラシー"]},
+];
+
+/* ---------- 状態 ---------- */
+let state={purpose:null,step:0,answers:{},includeRules:true};
+const stage=document.getElementById("stage");
+const bar=document.getElementById("bar");
+const nav=document.getElementById("nav");
+const rulerEl=document.getElementById("ruler");
+const curEl=document.getElementById("cur");
+const totalEl=document.getElementById("total");
+const remainEl=document.getElementById("remain");
+const backBtn=document.getElementById("backBtn");
+const nextBtn=document.getElementById("nextBtn");
+function qs(){return bank[state.purpose].concat(COMMON_QUESTIONS);}
+function pad(n){return String(n).padStart(2,"0");}
+function catTitle(){return (purposes.find(p=>p.id===state.purpose)||{}).t||"";}
+
+function renderStart(){
+  bar.style.display="none";nav.style.display="none";
+  let html=`<div class="fade"><p class="lead">どんなタスク？</p><p class="sub">お願いする作業の種類で選ぶと、それに合った質問が出ます。</p><div class="grid">`;
+  purposes.forEach(p=>{
+    html+=`<button class="purpose" data-p="${p.id}"><span class="pn">${p.n}</span><span class="pt">${p.t}</span><span class="pd">${p.d}</span></button>`;
+  });
+  html+=`</div></div>`;
+  stage.innerHTML=html;
+  stage.querySelectorAll(".purpose").forEach(b=>{b.onclick=()=>{state.purpose=b.dataset.p;state.step=0;state.answers={__lit:"社会人・高リテラシー"};renderQuestion();};});
+}
+
+function renderQuestion(){
+  const list=qs();const q=list[state.step];
+  bar.style.display="flex";nav.style.display="flex";
+  totalEl.textContent=pad(list.length);curEl.textContent=pad(state.step+1);
+  rulerEl.innerHTML="";
+  list.forEach((_,i)=>{const t=document.createElement("div");t.className="tick"+(i<state.step?" done":"")+(i===state.step?" active":"");rulerEl.appendChild(t);});
+  const left=list.length-state.step-1;remainEl.textContent=left>0?`あと${left}問`:"最後";
+  const optional=!q.required;
+  let inner=`<div class="fade"><div class="qlabel">${catTitle()} · Q${state.step+1}</div><h2 class="qtext">${q.q}${optional?'<span class="qoptional">任意</span>':''}</h2>`;
+  if(q.hint) inner+=`<p class="qhint">${q.hint}</p>`;
+  const val=state.answers[q.id];
+  if(q.type==="textarea"||q.type==="text"){
+    if(q.type==="textarea"){inner+=`<textarea id="inp" placeholder="${q.placeholder||''}">${val?escapeHtml(val):''}</textarea><div class="keyhint">⌘/Ctrl + Enter で次へ</div>`;}
+    else{inner+=`<input type="text" id="inp" placeholder="${q.placeholder||''}" value="${val?escapeAttr(val):''}"><div class="keyhint">Enter で次へ</div>`;}
+  }else{
+    const multi=q.type==="multi";const sel=Array.isArray(val)?val:(val?[val]:[]);
+    inner+=`<div class="chips">`;
+    q.options.forEach(o=>{const on=sel.includes(o);inner+=`<div class="chip ${multi?'multi':'single'} ${on?'sel':''}" data-o="${escapeAttr(o)}"><span class="box"></span>${o}</div>`;});
+    inner+=`</div>`;
+    if(multi) inner+=`<div class="multihint">複数選べます</div>`;
+  }
+  inner+=`</div>`;stage.innerHTML=inner;
+  const inp=document.getElementById("inp");
+  if(inp){
+    let composing=false;
+    inp.addEventListener("compositionstart",()=>composing=true);
+    inp.addEventListener("compositionend",()=>composing=false);
+    inp.oninput=()=>{state.answers[q.id]=inp.value;updateNext();};
+    inp.onkeydown=(e)=>{
+      if(e.key!=="Enter")return;
+      if(composing||e.isComposing||e.keyCode===229||e.which===229)return; // 日本語入力の変換確定は無視
+      if(q.type==="text"){e.preventDefault();goNext();}
+      if(q.type==="textarea"&&(e.metaKey||e.ctrlKey)){e.preventDefault();goNext();}
+    };
+    setTimeout(()=>inp.focus(),60);
+  }
+  stage.querySelectorAll(".chip").forEach(c=>{
+    c.onclick=()=>{const o=c.dataset.o;
+      if(q.type==="multi"){let arr=Array.isArray(state.answers[q.id])?state.answers[q.id].slice():[];arr.includes(o)?arr=arr.filter(x=>x!==o):arr.push(o);state.answers[q.id]=arr;}
+      else{state.answers[q.id]=o;}
+      renderQuestion();};
+  });
+  backBtn.textContent=state.step===0?"種類を選び直す":"戻る";
+  nextBtn.textContent=state.step===list.length-1?"指示文をつくる":"次へ";
+  backBtn.onclick=goBack;nextBtn.onclick=goNext;updateNext();
+}
+
+function updateNext(){
+  const q=qs()[state.step];let ok=true;
+  if(q.required){const v=state.answers[q.id];ok=Array.isArray(v)?v.length>0:(v&&v.trim().length>0);}
+  nextBtn.disabled=!ok;
+}
+function goBack(){if(state.step===0){renderStart();}else{state.step--;renderQuestion();}}
+function goNext(){if(nextBtn.disabled)return;if(state.step<qs().length-1){state.step++;renderQuestion();}else{renderResult();}}
+
+function assemble(){
+  const list=qs();const a=state.answers;let out="";
+  const role=(a.__role||"").trim();
+  if(role) out+=`あなたは${role}として、以下の依頼に対応してください。\n\n`;
+  list.forEach(q=>{
+    if(q.common)return;
+    let v=a[q.id];if(Array.isArray(v))v=v.join("、");
+    if(!v||!String(v).trim())return;v=String(v).trim();
+    if(q.role==="goal"){out+=`# ${v}\n\n`;}else{out+=`## ${q.section}\n${v}\n\n`;}
+  });
+  const lit=LITERACY.find(l=>l.v===a.__lit);
+  if(lit) out+=`## 説明レベル\n${lit.rule}\n\n`;
+  if(state.includeRules){out+=`---\n${COMMON_RULES}`;}
+  return out.trim();
+}
+
+function paintOutput(){
+  const text=assemble();window.__promptText=text;
+  const lines=text.split("\n");
+  const body=lines.map((ln,i)=>`<span class="reveal-line" style="animation-delay:${Math.min(i*18,360)}ms">${ln===""?"&nbsp;":escapeHtml(ln)}</span>`).join("\n");
+  const out=document.getElementById("out");if(out)out.innerHTML=body;
+}
+function renderResult(){
+  bar.style.display="none";
+  stage.innerHTML=`<div class="fade">
+    <label class="rules-toggle"><input type="checkbox" id="rulesChk" ${state.includeRules?'checked':''}><span>共通ルール（ハルシネーション対策）を付ける</span></label>
+    <div class="result-head">できあがり</div>
+    <div class="output" id="out"></div></div>`;
+  paintOutput();
+  document.getElementById("rulesChk").onchange=(e)=>{state.includeRules=e.target.checked;paintOutput();};
+  nav.style.display="flex";
+  backBtn.textContent="1つ戻って直す";backBtn.onclick=()=>{state.step=qs().length-1;renderQuestion();};
+  nextBtn.disabled=false;nextBtn.textContent="コピー";nextBtn.onclick=copyOut;
+  if(!document.getElementById("restart")){
+    const r=document.createElement("button");r.className="btn ghost";r.id="restart";r.textContent="最初から";
+    r.onclick=()=>{document.getElementById("restart")?.remove();renderStart();};
+    document.querySelector(".navinner .spacer").after(r);
+  }
+}
+
+function copyOut(){
+  const t=window.__promptText||"";
+  const done=()=>{nextBtn.textContent="コピーしました ✓";nextBtn.classList.add("copied");setTimeout(()=>{nextBtn.textContent="コピー";nextBtn.classList.remove("copied");},1600);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(fallbackCopy);}else{fallbackCopy();}
+  function fallbackCopy(){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done();}catch(e){}document.body.removeChild(ta);}
+}
+
+function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function escapeAttr(s){return s.replace(/"/g,"&quot;");}
+renderStart();
+</script>
+</body>
+</html>
