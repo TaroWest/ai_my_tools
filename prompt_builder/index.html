@@ -77,7 +77,7 @@
   .result-head{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-dark);font-weight:600;margin-bottom:14px;}
   .result-head::after{content:"";flex:1;height:1px;background:var(--line);}
   .output{font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px;white-space:pre-wrap;word-break:break-word;}
-  .reveal-line{opacity:0;transform:translateY(6px);animation:rise .4s ease forwards;}
+  .reveal-line{display:inline-block;opacity:0;transform:translateY(6px);animation:rise .4s ease forwards;}
   @keyframes rise{to{opacity:1;transform:none;}}
   .copied{color:var(--accent-dark);}
   .rules-toggle{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);margin-bottom:14px;cursor:pointer;user-select:none;}
@@ -130,10 +130,10 @@ const purposes = [
   {id:"consult",  n:"06", t:"相談・壁打ち", d:"一緒に考える"},
 ];
 
-/* type: text / textarea / single / multi ／ role:"goal" は先頭の依頼文 */
+/* type: text / textarea / single / multi ／ kind:"goal" は先頭の依頼文 */
 const bank = {
   research:[
-    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
       q:"何を調べたい？",hint:"知りたいこと・テーマを一言で",placeholder:"例：GA4の同意モードの最新仕様を知りたい"},
     {id:"use",section:"目的（何に使う）",type:"textarea",
       q:"調べた結果は何に使う？",hint:"目的が分かると精度が上がります",placeholder:"例：クライアント提案の裏付けにしたい"},
@@ -145,7 +145,7 @@ const bank = {
       q:"情報源や制約はある？",hint:"例：一次情報を優先、日本の事例中心、公式ドキュメント基準",placeholder:"なければ空欄でOK"},
   ],
   create:[
-    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
       q:"何を作る？",hint:"成果物を具体的に",placeholder:"例：note記事／SQL／提案資料の構成／案内メール"},
     {id:"who",section:"相手・用途",type:"textarea",
       q:"誰向け・どこで使う？",hint:"読み手や利用シーン",placeholder:"例：martech初心者向け、社内提案の場で"},
@@ -157,7 +157,7 @@ const bank = {
       q:"入れたい・外したい要素は？",hint:"キーワード、NG表現、分量の目安など",placeholder:"なければ空欄でOK"},
   ],
   analyze:[
-    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
       q:"何を分析したい？",placeholder:"例：先月の流入元別CVRの傾向を知りたい"},
     {id:"material",section:"対象データ・材料",type:"textarea",
       q:"分析する材料は？",hint:"数値、テーブル、文章など。貼れるものは貼ってOK",placeholder:"例：BigQueryの集計結果を貼る予定"},
@@ -169,8 +169,10 @@ const bank = {
       q:"前提や制約は？",placeholder:"なければ空欄でOK"},
   ],
   summarize:[
-    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
-      q:"何をまとめたい？",hint:"対象を書く（本文はこの後の会話で貼ってもOK）",placeholder:"例：この議事録／長い記事／複数の資料"},
+    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何をまとめたい？",hint:"対象を一言で（本文は次で貼れます）",placeholder:"例：この議事録／長い記事／複数の資料"},
+    {id:"body",section:"対象本文",type:"textarea",keepEmpty:true,emptyText:"（ここに対象の本文を貼り付けてください）",
+      q:"対象の本文はある？",hint:"任意。ここで貼ってもOK。空欄なら指示文に貼付欄を残します",placeholder:"対象のテキストを貼り付け…"},
     {id:"aim",section:"目的",type:"textarea",
       q:"何のためにまとめる？",placeholder:"例：後で見返す用／人に共有する用"},
     {id:"how",section:"まとめ方",type:"single",
@@ -181,8 +183,10 @@ const bank = {
       q:"落としたくない要素は？",placeholder:"なければ空欄でOK"},
   ],
   improve:[
-    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
-      q:"何を直したい？",hint:"対象と、どうしたいか（本文はこの後貼ってもOK）",placeholder:"例：この文章をもっと分かりやすくしたい"},
+    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何を直したい？",hint:"対象と、どうしたいか（本文は次で貼れます）",placeholder:"例：この文章をもっと分かりやすくしたい"},
+    {id:"body",section:"対象本文",type:"textarea",keepEmpty:true,emptyText:"（ここに対象の本文を貼り付けてください）",
+      q:"対象の本文はある？",hint:"任意。ここで貼ってもOK。空欄なら指示文に貼付欄を残します",placeholder:"対象のテキストを貼り付け…"},
     {id:"angle",section:"見てほしい観点",type:"multi",
       q:"どの観点でチェックする？",options:["わかりやすさ","論理・構成","誤り・事実確認","トーン・言い回し","簡潔さ"]},
     {id:"scope",section:"手を入れる範囲",type:"single",
@@ -193,7 +197,7 @@ const bank = {
       q:"変えてほしくない部分は？",placeholder:"なければ空欄でOK"},
   ],
   consult:[
-    {id:"goal",role:"goal",section:"依頼",type:"textarea",required:true,
+    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
       q:"相談したいことは？",hint:"テーマや悩みを一言で",placeholder:"例：note のマネタイズの進め方を考えたい"},
     {id:"ctx",section:"状況・前提",type:"textarea",
       q:"今の状況・前提は？",placeholder:"例：フォロワー◯人、記事は◯本公開済み"},
@@ -224,11 +228,14 @@ const LITERACY = [
 /* ---------- 全タスク共通の質問（各フローの末尾に追加） ---------- */
 const COMMON_QUESTIONS = [
   {id:"__role",section:"役割",type:"text",common:true,
-    q:"どんな立場・専門家として答えてほしい？",hint:"任意。指定すると指示文の冒頭に役割として入ります",placeholder:"例：GA4に詳しいマーケティングアナリスト"},
+    q:"どんな立場・専門家として答えてほしい？",hint:"任意。指定すると「役割」として指示文に反映されます",placeholder:"例：GA4に詳しいマーケティングアナリスト"},
   {id:"__lit",section:"説明レベル",type:"single",required:true,common:true,
     q:"あなたのリテラシー（説明レベル）は？",hint:"回答の噛み砕き具合が変わります",
     options:["高校生向け","社会人・低リテラシー","社会人・高リテラシー"]},
 ];
+
+/* ---------- 役割入力のタスク別プレースホルダ ---------- */
+const ROLE_EG={research:"GA4に詳しいアナリスト",create:"プロの編集者・ライター",analyze:"データアナリスト",summarize:"要点整理が得意な編集者",improve:"厳しめの校正・編集者",consult:"壁打ち役のコンサルタント"};
 
 /* ---------- 状態 ---------- */
 let state={purpose:null,step:0,answers:{},includeRules:true};
@@ -246,6 +253,7 @@ function pad(n){return String(n).padStart(2,"0");}
 function catTitle(){return (purposes.find(p=>p.id===state.purpose)||{}).t||"";}
 
 function renderStart(){
+  document.getElementById("restart")?.remove();
   bar.style.display="none";nav.style.display="none";
   let html=`<div class="fade"><p class="lead">どんなタスク？</p><p class="sub">お願いする作業の種類で選ぶと、それに合った質問が出ます。</p><div class="grid">`;
   purposes.forEach(p=>{
@@ -257,6 +265,7 @@ function renderStart(){
 }
 
 function renderQuestion(){
+  document.getElementById("restart")?.remove();
   const list=qs();const q=list[state.step];
   bar.style.display="flex";nav.style.display="flex";
   totalEl.textContent=pad(list.length);curEl.textContent=pad(state.step+1);
@@ -267,9 +276,10 @@ function renderQuestion(){
   let inner=`<div class="fade"><div class="qlabel">${catTitle()} · Q${state.step+1}</div><h2 class="qtext">${q.q}${optional?'<span class="qoptional">任意</span>':''}</h2>`;
   if(q.hint) inner+=`<p class="qhint">${q.hint}</p>`;
   const val=state.answers[q.id];
+  const ph=(q.id==="__role"&&ROLE_EG[state.purpose])?("例："+ROLE_EG[state.purpose]):(q.placeholder||"");
   if(q.type==="textarea"||q.type==="text"){
-    if(q.type==="textarea"){inner+=`<textarea id="inp" placeholder="${q.placeholder||''}">${val?escapeHtml(val):''}</textarea><div class="keyhint">⌘/Ctrl + Enter で次へ</div>`;}
-    else{inner+=`<input type="text" id="inp" placeholder="${q.placeholder||''}" value="${val?escapeAttr(val):''}"><div class="keyhint">Enter で次へ</div>`;}
+    if(q.type==="textarea"){inner+=`<textarea id="inp" placeholder="${ph}">${val?escapeHtml(val):''}</textarea><div class="keyhint">⌘/Ctrl + Enter で次へ</div>`;}
+    else{inner+=`<input type="text" id="inp" placeholder="${ph}" value="${val?escapeAttr(val):''}"><div class="keyhint">Enter で次へ（日本語入力の変換確定では進みません）</div>`;}
   }else{
     const multi=q.type==="multi";const sel=Array.isArray(val)?val:(val?[val]:[]);
     inner+=`<div class="chips">`;
@@ -294,9 +304,15 @@ function renderQuestion(){
   }
   stage.querySelectorAll(".chip").forEach(c=>{
     c.onclick=()=>{const o=c.dataset.o;
-      if(q.type==="multi"){let arr=Array.isArray(state.answers[q.id])?state.answers[q.id].slice():[];arr.includes(o)?arr=arr.filter(x=>x!==o):arr.push(o);state.answers[q.id]=arr;}
-      else{state.answers[q.id]=o;}
-      renderQuestion();};
+      if(q.type==="multi"){
+        let arr=Array.isArray(state.answers[q.id])?state.answers[q.id].slice():[];
+        arr.includes(o)?arr=arr.filter(x=>x!==o):arr.push(o);state.answers[q.id]=arr;
+        c.classList.toggle("sel");
+      }else{
+        state.answers[q.id]=o;
+        stage.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===c));
+      }
+      updateNext();};
   });
   backBtn.textContent=state.step===0?"種類を選び直す":"戻る";
   nextBtn.textContent=state.step===list.length-1?"指示文をつくる":"次へ";
@@ -313,16 +329,14 @@ function goNext(){if(nextBtn.disabled)return;if(state.step<qs().length-1){state.
 
 function assemble(){
   const list=qs();const a=state.answers;let out="";
-  const role=(a.__role||"").trim();
-  if(role) out+=`あなたは${role}として、以下の依頼に対応してください。\n\n`;
   list.forEach(q=>{
-    if(q.common)return;
+    if(q.id==="__role"){const v=(a.__role||"").trim();if(v)out+=`## 役割\nあなたは${v}として回答してください。\n\n`;return;}
+    if(q.id==="__lit"){const lit=LITERACY.find(l=>l.v===a.__lit);if(lit)out+=`## 説明レベル\n${lit.rule}\n\n`;return;}
     let v=a[q.id];if(Array.isArray(v))v=v.join("、");
-    if(!v||!String(v).trim())return;v=String(v).trim();
-    if(q.role==="goal"){out+=`# ${v}\n\n`;}else{out+=`## ${q.section}\n${v}\n\n`;}
+    if(!v||!String(v).trim()){if(q.keepEmpty)out+=`## ${q.section}\n${q.emptyText}\n\n`;return;}
+    v=String(v).trim();
+    if(q.kind==="goal"){out+=`# ${v}\n\n`;}else{out+=`## ${q.section}\n${v}\n\n`;}
   });
-  const lit=LITERACY.find(l=>l.v===a.__lit);
-  if(lit) out+=`## 説明レベル\n${lit.rule}\n\n`;
   if(state.includeRules){out+=`---\n${COMMON_RULES}`;}
   return out.trim();
 }
