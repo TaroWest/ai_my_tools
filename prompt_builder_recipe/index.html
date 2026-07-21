@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>レシピ登録カード</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap');
+
+  :root{
+    --paper:#F6F3EC;
+    --card:#FFFDF8;
+    --ink:#2B2A25;
+    --ink-soft:#6B6A5F;
+    --forest:#2F4B3C;
+    --forest-soft:#4E6C5B;
+    --mustard:#C08A2E;
+    --line:#DDD8C8;
+    --hole:#E7E2D3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(47,75,60,0.05), transparent 40%),
+      var(--paper);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    color:var(--ink);
+    display:flex;
+    justify-content:center;
+    padding:28px 14px 60px;
+  }
+  .card{
+    width:100%;
+    max-width:420px;
+    background:var(--card);
+    border-radius:18px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04), 0 12px 30px -12px rgba(43,42,37,0.18);
+    position:relative;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .holes{
+    position:absolute;
+    left:16px; top:0; bottom:0;
+    width:14px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-evenly;
+    align-items:center;
+    z-index:2;
+  }
+  .holes span{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--paper);
+    box-shadow:inset 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .content{ padding:26px 24px 24px 44px; }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    color:var(--forest-soft);
+    text-transform:uppercase;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:22px;
+    margin:4px 0 2px;
+    color:var(--ink);
+  }
+  .sub{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:20px;
+    line-height:1.5;
+  }
+
+  .steps{
+    display:flex;
+    gap:6px;
+    margin-bottom:20px;
+  }
+  .steps .dot{
+    flex:1;
+    height:4px;
+    border-radius:3px;
+    background:var(--line);
+    transition:background .25s ease;
+  }
+  .steps .dot.active{ background:var(--forest); }
+  .steps .dot.done{ background:var(--mustard); }
+
+  .step-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--forest-soft);
+    margin-bottom:6px;
+    letter-spacing:0.04em;
+  }
+  .q{
+    font-size:16.5px;
+    font-weight:700;
+    margin:0 0 12px;
+    line-height:1.45;
+  }
+  .hint{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin:-8px 0 12px;
+    line-height:1.5;
+  }
+  textarea, input[type=text]{
+    width:100%;
+    border:1px solid var(--line);
+    background:#FBFAF5;
+    border-radius:10px;
+    padding:12px 13px;
+    font-size:14.5px;
+    font-family:inherit;
+    color:var(--ink);
+    resize:vertical;
+    line-height:1.6;
+  }
+  textarea:focus, input:focus{
+    outline:none;
+    border-color:var(--forest-soft);
+    background:#fff;
+  }
+  textarea{ min-height:120px; }
+
+  .btnrow{
+    display:flex;
+    gap:10px;
+    margin-top:20px;
+  }
+  button{
+    font-family:inherit;
+    font-size:14px;
+    font-weight:700;
+    border-radius:10px;
+    border:none;
+    padding:12px 16px;
+    cursor:pointer;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  button:active{ transform:scale(0.97); }
+  .btn-primary{
+    background:var(--forest);
+    color:#F6F3EC;
+    flex:1;
+  }
+  .btn-primary:disabled{
+    opacity:0.35;
+    cursor:not-allowed;
+  }
+  .btn-ghost{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+  }
+
+  .result{
+    background:#F1EEE3;
+    border:1px dashed var(--line);
+    border-radius:12px;
+    padding:16px 15px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    line-height:1.7;
+    white-space:pre-wrap;
+    word-break:break-word;
+    color:var(--ink);
+    max-height:340px;
+    overflow-y:auto;
+  }
+  .copybar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .copybar .label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--forest-soft);
+    letter-spacing:0.08em;
+  }
+  .copy-btn{
+    background:var(--mustard);
+    color:#fff;
+    font-size:12.5px;
+    padding:8px 13px;
+  }
+  .copy-btn.copied{ background:var(--forest); }
+
+  .done-note{
+    margin-top:14px;
+    font-size:12px;
+    color:var(--ink-soft);
+    line-height:1.6;
+  }
+  .stamp{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--forest-soft);
+    border:1px solid var(--forest-soft);
+    border-radius:20px;
+    padding:2px 9px;
+    margin-top:14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="holes"><span></span><span></span><span></span></div>
+  <div class="content">
+    <div class="eyebrow">Notion登録カード / recipe intake</div>
+    <h1>レシピ登録プロンプト</h1>
+    <div class="sub">レシピ名・材料・工程を入力すると、Claudeにそのまま貼り付けられる指示文を作ります。写真はNotion側で直接添付してください。</div>
+
+    <div class="steps">
+      <div class="dot" data-i="0"></div>
+      <div class="dot" data-i="1"></div>
+      <div class="dot" data-i="2"></div>
+      <div class="dot" data-i="3"></div>
+    </div>
+
+    <!-- Step 0: レシピ名 -->
+    <div class="step" data-step="0">
+      <div class="step-label">STEP 1 / 4</div>
+      <p class="q">レシピ名は？</p>
+      <input type="text" id="q-name" placeholder="例：鶏むね肉のさっぱり油淋鶏風">
+      <div class="btnrow">
+        <button class="btn-primary" onclick="next(0)">次へ</button>
+      </div>
+    </div>
+
+    <!-- Step 1: 材料 -->
+    <div class="step" data-step="1" style="display:none">
+      <div class="step-label">STEP 2 / 4</div>
+      <p class="q">材料を教えてください</p>
+      <div class="hint">1食分の材料と分量を、わかる範囲で箇条書きで。（例：鶏むね肉 150g／醤油 大さじ1 ...）</div>
+      <textarea id="q-ingredients" placeholder="鶏むね肉 150g&#10;醤油 大さじ1&#10;酢 大さじ1&#10;..."></textarea>
+      <div class="btnrow">
+        <button class="btn-ghost" onclick="back(1)">戻る</button>
+        <button class="btn-primary" onclick="next(1)">次へ</button>
+      </div>
+    </div>
+
+    <!-- Step 2: 工程 -->
+    <div class="step" data-step="2" style="display:none">
+      <div class="step-label">STEP 3 / 4</div>
+      <p class="q">作り方（工程）は？</p>
+      <div class="hint">手順を番号順に。細かくてもざっくりでもOKです。</div>
+      <textarea id="q-process" placeholder="1. 鶏むね肉をそぎ切りにする&#10;2. 片栗粉をまぶして焼く&#10;3. ..."></textarea>
+      <div class="btnrow">
+        <button class="btn-ghost" onclick="back(2)">戻る</button>
+        <button class="btn-primary" onclick="next(2)">次へ</button>
+      </div>
+    </div>
+
+    <!-- Step 3: 確認・出力 -->
+    <div class="step" data-step="3" style="display:none">
+      <div class="step-label">STEP 4 / 4</div>
+      <p class="q">この指示文をコピーしてClaudeに貼り付けてください</p>
+
+      <div class="copybar">
+        <span class="label">生成された指示文</span>
+        <button class="copy-btn" id="copyBtn" onclick="copyResult()">コピー</button>
+      </div>
+      <div class="result" id="resultBox"></div>
+
+      <div class="done-note">
+        ※ カロリー・PFC・費用は目安の推定値として記入されます。おいしさ（★）は空欄で作成され、後から評価を追加できます。写真はご自身でNotionに直接添付してください。
+      </div>
+      <div class="btnrow">
+        <button class="btn-ghost" onclick="back(3)">修正する</button>
+        <button class="btn-primary" onclick="resetAll()">新しいレシピを入力</button>
+      </div>
+      <div class="stamp">◎ 材料・工程 入力済み</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let current = 0;
+const total = 4;
+
+function updateDots(){
+  document.querySelectorAll('.dot').forEach((d,i)=>{
+    d.classList.remove('active','done');
+    if(i < current) d.classList.add('done');
+    else if(i === current) d.classList.add('active');
+  });
+}
+
+function showStep(i){
+  document.querySelectorAll('.step').forEach(s=>{
+    s.style.display = (parseInt(s.dataset.step) === i) ? 'block' : 'none';
+  });
+  current = i;
+  updateDots();
+  if(i === 3) buildResult();
+}
+
+function next(i){
+  if(i === 0 && !document.getElementById('q-name').value.trim()){
+    alert('レシピ名を入力してください');
+    return;
+  }
+  if(i === 1 && !document.getElementById('q-ingredients').value.trim()){
+    alert('材料を入力してください');
+    return;
+  }
+  if(i === 2 && !document.getElementById('q-process').value.trim()){
+    alert('工程を入力してください');
+    return;
+  }
+  showStep(i+1);
+}
+function back(i){ showStep(i-1); }
+
+function resetAll(){
+  document.getElementById('q-name').value = '';
+  document.getElementById('q-ingredients').value = '';
+  document.getElementById('q-process').value = '';
+  document.getElementById('copyBtn').textContent = 'コピー';
+  document.getElementById('copyBtn').classList.remove('copied');
+  showStep(0);
+}
+
+function buildResult(){
+  const name = document.getElementById('q-name').value.trim();
+  const ingredients = document.getElementById('q-ingredients').value.trim();
+  const process = document.getElementById('q-process').value.trim();
+
+  const text =
+`Notionの「ダイエットレシピ集」データベースに新規ページを追加してください。
+
+レシピ名：${name}
+
+材料：
+${ingredients}
+
+工程：
+${process}
+
+【記入ルール】
+・カロリー(kcal)／PFC(たんぱく質・脂質・炭水化物)／費用(円)は、材料と分量から一般的な栄養成分の目安として推定してください。推定値である旨がわかるようにしてください。
+・おいしさ（★）は空欄のままにしてください。
+・完成写真はこちらでNotionに直接添付するため、対応不要です。
+・カテゴリ、SNS投稿状況などその他の項目は空欄で構いません。`;
+
+  document.getElementById('resultBox').textContent = text;
+}
+
+function copyResult(){
+  const text = document.getElementById('resultBox').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'コピーしました';
+    btn.classList.add('copied');
+    setTimeout(()=>{
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 1800);
+  });
+}
+
+showStep(0);
+</script>
+
+</body>
+</html>
