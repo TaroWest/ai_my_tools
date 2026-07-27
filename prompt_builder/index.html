@@ -63,6 +63,7 @@
   .chip.sel .box::after{content:"";width:6px;height:6px;border-radius:1px;background:#fff;}
   .chip.single.sel .box::after{border-radius:50%;}
   .multihint{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:11px;}
+  .ct-text{margin-top:13px;min-height:72px;}
   .nav{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(236,234,228,0) 0%,var(--paper) 34%);padding:16px;display:flex;justify-content:center;pointer-events:none;}
   .navinner{width:100%;max-width:680px;display:flex;gap:10px;justify-content:space-between;pointer-events:auto;}
   button.btn{font-family:var(--body);font-size:15px;font-weight:600;cursor:pointer;border-radius:var(--radius);padding:13px 22px;transition:all .15s;border:1px solid transparent;}
@@ -141,16 +142,28 @@ const bank = {
       q:"どこまで調べる？",options:["ざっくり概要","網羅的にしっかり","比較して整理","最新情報を重視"]},
     {id:"format",section:"出力形式",type:"multi",
       q:"どんな形で出してほしい？",options:["文章で解説","表で比較","箇条書き","事実・データ・仮説・意見を分けて","参考リンク付き"]},
-    {id:"limit",section:"情報源・制約",type:"textarea",
-      q:"情報源や制約はある？",hint:"例：一次情報を優先、日本の事例中心、公式ドキュメント基準",placeholder:"なければ空欄でOK"},
+    {id:"src",section:"情報源・制約",type:"chipstext",
+      q:"情報源や手段は？",hint:"該当するものを選択（複数可）。URL・細かい制約は下に記入",
+      options:[
+        {label:"Web検索する",expand:"Web検索で最新情報を確認してください"},
+        {label:"添付ファイルを参照",expand:"添付ファイルの内容を参照してください"},
+        {label:"会話内のテキストを参照",expand:"この会話に貼るテキストを参照してください"},
+        {label:"指定URL・サイト",expand:"指定するURL・サイトを参照してください（URLは下記）"},
+        {label:"公的統計・一次情報を優先",expand:"公的統計・一次情報を優先してください"},
+        {label:"学術・論文を優先",expand:"学術論文・研究を優先してください"},
+        {label:"Web検索はしない",expand:"Web検索は行わず既存知識で答えてください"},
+      ],
+      placeholder:"URL・細かい制約など（任意）"},
   ],
   create:[
-    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
-      q:"何を作る？",hint:"成果物を具体的に",placeholder:"例：note記事／SQL／提案資料の構成／案内メール"},
+    {id:"goal",kind:"goal",section:"依頼",type:"chipstext",single:true,required:true,productSection:"成果物",
+      q:"何を作る？",hint:"種類を選び（任意）、具体的な中身を書いてください（中身は必須）",
+      options:["記事・note","ブログ・SNS投稿","メール・連絡文","報告書・提案書","スライド構成","コード・SQL","設定手順","企画・アイデア","タイトル・キャッチコピー","テンプレート・ひな形"],
+      placeholder:"例：GA4移行のメリットを実務者向けに説明するnote記事"},
     {id:"who",section:"相手・用途",type:"textarea",
       q:"誰向け・どこで使う？",hint:"読み手や利用シーン",placeholder:"例：martech初心者向け、社内提案の場で"},
-    {id:"format",section:"形式・分量",type:"single",
-      q:"どんな形式で？",options:["文章","箇条書き","コード","表","ステップ手順","構成案だけ"]},
+    {id:"format",section:"体裁・分量",type:"multi",
+      q:"体裁・分量は？",options:["文章主体","箇条書き主体","表を使う","短め","しっかり詳しく"]},
     {id:"tone",section:"トーン・スタイル",type:"single",
       q:"トーンは？",options:["丁寧に詳しく","簡潔に要点","専門的に","カジュアルに","おまかせ"]},
     {id:"include",section:"含めたい／避けたい要素",type:"textarea",
@@ -280,6 +293,16 @@ function renderQuestion(){
   if(q.type==="textarea"||q.type==="text"){
     if(q.type==="textarea"){inner+=`<textarea id="inp" placeholder="${ph}">${val?escapeHtml(val):''}</textarea><div class="keyhint">⌘/Ctrl + Enter で次へ</div>`;}
     else{inner+=`<input type="text" id="inp" placeholder="${ph}" value="${val?escapeAttr(val):''}"><div class="keyhint">Enter で次へ（日本語入力の変換確定では進みません）</div>`;}
+  }else if(q.type==="chipstext"){
+    const ans=(val&&typeof val==="object"&&!Array.isArray(val))?val:{chips:[],text:""};
+    const sel=Array.isArray(ans.chips)?ans.chips:[];const single=!!q.single;
+    inner+=`<div class="chips" id="ctChips">`;
+    q.options.forEach(o=>{const lbl=(typeof o==="object")?o.label:o;const on=sel.includes(lbl);
+      inner+=`<div class="chip ${single?'single':'multi'} ${on?'sel':''}" data-o="${escapeAttr(lbl)}"><span class="box"></span>${lbl}</div>`;});
+    inner+=`</div>`;
+    if(!single) inner+=`<div class="multihint">複数選べます</div>`;
+    inner+=`<textarea id="ctText" class="ct-text" placeholder="${escapeAttr(q.placeholder||'')}">${ans.text?escapeHtml(ans.text):''}</textarea>`;
+    inner+=`<div class="keyhint">⌘/Ctrl + Enter で次へ</div>`;
   }else{
     const multi=q.type==="multi";const sel=Array.isArray(val)?val:(val?[val]:[]);
     inner+=`<div class="chips">`;
@@ -302,26 +325,49 @@ function renderQuestion(){
     };
     setTimeout(()=>inp.focus(),60);
   }
-  stage.querySelectorAll(".chip").forEach(c=>{
-    c.onclick=()=>{const o=c.dataset.o;
-      if(q.type==="multi"){
-        let arr=Array.isArray(state.answers[q.id])?state.answers[q.id].slice():[];
-        arr.includes(o)?arr=arr.filter(x=>x!==o):arr.push(o);state.answers[q.id]=arr;
-        c.classList.toggle("sel");
-      }else{
-        state.answers[q.id]=o;
-        stage.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===c));
-      }
-      updateNext();};
-  });
+  if(q.type==="single"||q.type==="multi"){
+    stage.querySelectorAll(".chip").forEach(c=>{
+      c.onclick=()=>{const o=c.dataset.o;
+        if(q.type==="multi"){
+          let arr=Array.isArray(state.answers[q.id])?state.answers[q.id].slice():[];
+          arr.includes(o)?arr=arr.filter(x=>x!==o):arr.push(o);state.answers[q.id]=arr;
+          c.classList.toggle("sel");
+        }else{
+          state.answers[q.id]=o;
+          stage.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===c));
+        }
+        updateNext();};
+    });
+  }
+  if(q.type==="chipstext"){
+    const ctText=document.getElementById("ctText");
+    if(ctText){
+      let comp=false;
+      ctText.addEventListener("compositionstart",()=>comp=true);
+      ctText.addEventListener("compositionend",()=>comp=false);
+      ctText.oninput=()=>{ensureCT(q.id).text=ctText.value;updateNext();};
+      ctText.onkeydown=(e)=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)&&!comp&&!e.isComposing){e.preventDefault();goNext();}};
+    }
+    const ctChips=document.getElementById("ctChips");
+    if(ctChips){
+      ctChips.querySelectorAll(".chip").forEach(c=>{
+        c.onclick=()=>{const o=c.dataset.o;const st=ensureCT(q.id);
+          if(q.single){st.chips=[o];ctChips.querySelectorAll(".chip").forEach(x=>x.classList.toggle("sel",x===c));}
+          else{st.chips.includes(o)?st.chips=st.chips.filter(x=>x!==o):st.chips.push(o);c.classList.toggle("sel");}
+          updateNext();};
+      });
+    }
+  }
   backBtn.textContent=state.step===0?"種類を選び直す":"戻る";
   nextBtn.textContent=state.step===list.length-1?"指示文をつくる":"次へ";
   backBtn.onclick=goBack;nextBtn.onclick=goNext;updateNext();
 }
 
+function ensureCT(id){let v=state.answers[id];if(!v||typeof v!=="object"||Array.isArray(v)){v={chips:[],text:""};state.answers[id]=v;}return v;}
 function updateNext(){
   const q=qs()[state.step];let ok=true;
-  if(q.required){const v=state.answers[q.id];ok=Array.isArray(v)?v.length>0:(v&&v.trim().length>0);}
+  if(q.type==="chipstext"){const ans=state.answers[q.id]||{};ok=!q.required||!!(ans.text&&ans.text.trim().length>0);}
+  else if(q.required){const v=state.answers[q.id];ok=Array.isArray(v)?v.length>0:!!(v&&v.trim().length>0);}
   nextBtn.disabled=!ok;
 }
 function goBack(){if(state.step===0){renderStart();}else{state.step--;renderQuestion();}}
@@ -330,6 +376,19 @@ function goNext(){if(nextBtn.disabled)return;if(state.step<qs().length-1){state.
 function assemble(){
   const list=qs();const a=state.answers;let out="";
   list.forEach(q=>{
+    if(q.type==="chipstext"){
+      const ans=a[q.id]||{};const chips=Array.isArray(ans.chips)?ans.chips:[];const txt=(ans.text||"").trim();
+      if(q.kind==="goal"){
+        if(txt)out+=`# ${txt}\n\n`;
+        if(chips.length)out+=`## ${q.productSection||"成果物"}\n${chips.join("、")}\n\n`;
+        return;
+      }
+      const lines=[];
+      chips.forEach(lbl=>{const opt=(q.options||[]).find(o=>(typeof o==="object"?o.label:o)===lbl);lines.push("・"+(opt&&opt.expand?opt.expand:lbl));});
+      if(txt)lines.push(txt);
+      if(lines.length)out+=`## ${q.section}\n${lines.join("\n")}\n\n`;
+      return;
+    }
     if(q.id==="__role"){const v=(a.__role||"").trim();if(v)out+=`## 役割\nあなたは${v}として回答してください。\n\n`;return;}
     if(q.id==="__lit"){const lit=LITERACY.find(l=>l.v===a.__lit);if(lit)out+=`## 説明レベル\n${lit.rule}\n\n`;return;}
     let v=a[q.id];if(Array.isArray(v))v=v.join("、");
