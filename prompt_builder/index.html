@@ -64,6 +64,18 @@
   .chip.single.sel .box::after{border-radius:50%;}
   .multihint{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:11px;}
   .ct-text{margin-top:13px;min-height:72px;}
+  .intent-box{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:16px 16px 14px;margin-bottom:16px;}
+  .intent-box textarea{min-height:76px;font-size:14.5px;}
+  .intent-disclaimer{font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--muted);margin:9px 0 12px;}
+  .or-divider{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);margin:4px 0 14px;}
+  .or-divider::before,.or-divider::after{content:"";flex:1;height:1px;background:var(--line);}
+  .intent-result{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);}
+  .intent-lead{font-size:13.5px;color:var(--ink);margin:0 0 10px;}
+  .intent-cands{display:flex;flex-wrap:wrap;gap:9px;}
+  .intent-cand{cursor:pointer;font-family:var(--body);font-weight:600;font-size:14px;color:#fff;background:var(--accent);border:1px solid transparent;border-radius:22px;padding:9px 16px;transition:background .12s;}
+  .intent-cand:hover{background:var(--accent-dark);}
+  .intent-note{font-size:12.5px;color:var(--muted);margin-top:11px;line-height:1.6;}
+  .intent-empty{font-size:13px;color:var(--muted);}
   .nav{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(236,234,228,0) 0%,var(--paper) 34%);padding:16px;display:flex;justify-content:center;pointer-events:none;}
   .navinner{width:100%;max-width:680px;display:flex;gap:10px;justify-content:space-between;pointer-events:auto;}
   button.btn{font-family:var(--body);font-size:15px;font-weight:600;cursor:pointer;border-radius:var(--radius);padding:13px 22px;transition:all .15s;border:1px solid transparent;}
@@ -123,12 +135,13 @@
 <script>
 /* ---------- タスクの種類 ---------- */
 const purposes = [
-  {id:"research", n:"01", t:"調査・リサーチ", d:"調べて整理してもらう"},
-  {id:"create",   n:"02", t:"作成",         d:"文章・コード・資料をつくる"},
-  {id:"analyze",  n:"03", t:"分析",         d:"データや状況を読み解く"},
-  {id:"summarize",n:"04", t:"要約・整理",   d:"既存の内容をまとめる"},
-  {id:"improve",  n:"05", t:"添削・改善",   d:"成果物を見て直す"},
-  {id:"consult",  n:"06", t:"相談・壁打ち", d:"一緒に考える"},
+  {id:"research", n:"01", t:"調べたい",   d:"調べて整理してもらう"},
+  {id:"create",   n:"02", t:"作成したい", d:"文章・コード・資料をつくる"},
+  {id:"analyze",  n:"03", t:"分析したい", d:"データや状況を読み解く"},
+  {id:"summarize",n:"04", t:"まとめたい", d:"既存の内容を要約・整理する"},
+  {id:"improve",  n:"05", t:"添削したい", d:"不備がないかチェックしてもらう"},
+  {id:"rewrite",  n:"06", t:"作り直したい", d:"方向性を決めて作り変える"},
+  {id:"consult",  n:"07", t:"相談したい", d:"一緒に考える"},
 ];
 
 /* type: text / textarea / single / multi ／ kind:"goal" は先頭の依頼文 */
@@ -139,9 +152,20 @@ const bank = {
     {id:"use",section:"目的（何に使う）",type:"textarea",
       q:"調べた結果は何に使う？",hint:"目的が分かると精度が上がります",placeholder:"例：クライアント提案の裏付けにしたい"},
     {id:"depth",section:"深さ・範囲",type:"single",
-      q:"どこまで調べる？",options:["ざっくり概要","網羅的にしっかり","比較して整理","最新情報を重視"]},
+      q:"どこまで調べる？",options:[
+        {label:"ざっくり概要",expand:"全体像がつかめる程度に、要点を絞って調べてください"},
+        {label:"網羅的にしっかり",expand:"主要な論点を漏れなく網羅して調べてください"},
+        {label:"比較して整理",expand:"複数の選択肢を比較し、違いが分かる形で整理してください"},
+        {label:"最新情報を重視",expand:"直近の情報を優先し、いつ時点の情報かを明記してください"},
+      ]},
     {id:"format",section:"出力形式",type:"multi",
-      q:"どんな形で出してほしい？",options:["文章で解説","表で比較","箇条書き","事実・データ・仮説・意見を分けて","参考リンク付き"]},
+      q:"どんな形で出してほしい？",options:[
+        {label:"文章で解説",expand:"文章でわかりやすく解説してください"},
+        {label:"表で比較",expand:"比較できる形で表にまとめてください"},
+        {label:"箇条書き",expand:"要点を箇条書きで整理してください"},
+        {label:"事実・データ・仮説・意見を分けて",expand:"事実・データ・仮説・意見を明確に分けて示してください"},
+        {label:"参考リンク付き",expand:"参照した情報源のリンクを付けてください"},
+      ]},
     {id:"src",section:"情報源・制約",type:"chipstext",
       q:"情報源や手段は？",hint:"該当するものを選択（複数可）。URL・細かい制約は下に記入",
       options:[
@@ -154,6 +178,8 @@ const bank = {
         {label:"Web検索はしない",expand:"Web検索は行わず既存知識で答えてください"},
       ],
       placeholder:"URL・細かい制約など（任意）"},
+    {id:"limit",section:"制約条件",type:"textarea",
+      q:"制約条件はある？",hint:"任意。範囲の限定、外してほしい観点など",placeholder:"例：日本国内の事例に限定してください"},
   ],
   create:[
     {id:"goal",kind:"goal",section:"依頼",type:"chipstext",single:true,required:true,productSection:"成果物",
@@ -162,24 +188,49 @@ const bank = {
       placeholder:"例：GA4移行のメリットを実務者向けに説明するnote記事"},
     {id:"who",section:"相手・用途",type:"textarea",
       q:"誰向け・どこで使う？",hint:"読み手や利用シーン",placeholder:"例：martech初心者向け、社内提案の場で"},
+    {id:"source",section:"参考にする材料",type:"textarea",
+      q:"下敷きにする材料はある？",hint:"任意。調査結果や既存資料などを貼ると、それに基づいて書きます",placeholder:"参考にしてほしい内容を貼り付け…"},
     {id:"format",section:"体裁・分量",type:"multi",
-      q:"体裁・分量は？",options:["文章主体","箇条書き主体","表を使う","短め","しっかり詳しく"]},
+      q:"体裁・分量は？",options:[
+        {label:"文章主体",expand:"箇条書きに頼らず、文章主体で書いてください"},
+        {label:"箇条書き主体",expand:"要点を箇条書き主体で整理してください"},
+        {label:"表を使う",expand:"比較・整理には表を使ってください"},
+        {label:"短め",expand:"全体で200字程度に収めてください"},
+        {label:"しっかり詳しく",expand:"背景や具体例も含め、2000字程度で詳しく述べてください"},
+      ]},
     {id:"tone",section:"トーン・スタイル",type:"single",
-      q:"トーンは？",options:["丁寧に詳しく","簡潔に要点","専門的に","カジュアルに","おまかせ"]},
-    {id:"include",section:"含めたい／避けたい要素",type:"textarea",
-      q:"入れたい・外したい要素は？",hint:"キーワード、NG表現、分量の目安など",placeholder:"なければ空欄でOK"},
+      q:"トーンは？",options:[
+        {label:"丁寧に詳しく",expand:"丁寧で詳しいトーンで書いてください"},
+        {label:"簡潔に要点",expand:"簡潔に要点を押さえたトーンで書いてください"},
+        {label:"専門的に",expand:"専門的なトーンで書いてください"},
+        {label:"カジュアルに",expand:"カジュアルなトーンで書いてください"},
+        "おまかせ",
+      ]},
+    {id:"limit",section:"制約条件",type:"textarea",
+      q:"制約条件はある？",hint:"任意。入れたい要素、避けたい表現、分量の目安など",placeholder:"例：専門用語は避けてください"},
   ],
   analyze:[
     {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
-      q:"何を分析したい？",placeholder:"例：先月の流入元別CVRの傾向を知りたい"},
-    {id:"material",section:"対象データ・材料",type:"textarea",
-      q:"分析する材料は？",hint:"数値、テーブル、文章など。貼れるものは貼ってOK",placeholder:"例：BigQueryの集計結果を貼る予定"},
+      q:"何を分析したい？",hint:"知りたいこと・調べたい切り口を一言で（材料は次で貼れます）",placeholder:"例：先月の流入元別CVRの傾向を知りたい"},
+    {id:"material",section:"対象データ・材料",type:"textarea",keepEmpty:true,emptyText:"（ここに対象のデータ・材料を貼り付けてください）",
+      q:"分析する材料は？",hint:"任意。ここで貼ってもOK。空欄なら指示文に貼付欄を残します",placeholder:"数値・テーブル・文章などを貼り付け…"},
     {id:"angle",section:"知りたい観点",type:"multi",
-      q:"どんな観点で見てほしい？",options:["原因・要因","傾向・変化","比較","改善の示唆","異常・課題の発見"]},
+      q:"どんな観点で見てほしい？",options:[
+        {label:"原因・要因",expand:"原因・要因を明らかにしてください"},
+        {label:"傾向・変化",expand:"傾向や変化を示してください"},
+        {label:"比較",expand:"比較して違いを明らかにしてください"},
+        {label:"改善の示唆",expand:"改善につながる示唆を示してください"},
+        {label:"異常・課題の発見",expand:"異常や課題があれば指摘してください"},
+      ]},
     {id:"format",section:"出力形式",type:"single",
-      q:"どう出す？",options:["結論から要点","表で整理","事実・データ・仮説・意見を分けて","ロジックも見せて"]},
-    {id:"limit",section:"制約・前提",type:"textarea",
-      q:"前提や制約は？",placeholder:"なければ空欄でOK"},
+      q:"どう出す？",options:[
+        {label:"結論から要点",expand:"結論から先に述べ、要点を簡潔に示してください"},
+        {label:"表で整理",expand:"表で整理してください"},
+        {label:"事実・データ・仮説・意見を分けて",expand:"事実・データ・仮説・意見を明確に分けて示してください"},
+        {label:"ロジックも見せて",expand:"結論に至るロジック（考え方の筋道）も示してください"},
+      ]},
+    {id:"limit",section:"制約条件",type:"textarea",
+      q:"制約条件はある？",hint:"任意。前提条件、除外したい期間やセグメントなど",placeholder:"例：bot経由のアクセスは除外してください"},
   ],
   summarize:[
     {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
@@ -189,25 +240,59 @@ const bank = {
     {id:"aim",section:"目的",type:"textarea",
       q:"何のためにまとめる？",placeholder:"例：後で見返す用／人に共有する用"},
     {id:"how",section:"まとめ方",type:"single",
-      q:"どうまとめる？",options:["短く要約","論点を整理","見出しで構造化","箇条書き","表に整理"]},
+      q:"どうまとめる？",options:[
+        {label:"短く要約",expand:"短く要約してください"},
+        {label:"論点を整理",expand:"論点を整理して示してください"},
+        {label:"見出しで構造化",expand:"見出しを立てて構造化してください"},
+        {label:"箇条書き",expand:"箇条書きで整理してください"},
+        {label:"表に整理",expand:"表に整理してください"},
+      ]},
     {id:"length",section:"分量・粒度",type:"single",
-      q:"どのくらいの分量？",options:["3行で","ひと段落で","しっかり詳しく","元の半分くらい"]},
-    {id:"note",section:"残したいポイント・注意",type:"textarea",
-      q:"落としたくない要素は？",placeholder:"なければ空欄でOK"},
+      q:"どのくらいの分量？",options:[
+        {label:"3行で",expand:"3行以内に要約してください"},
+        {label:"ひと段落で",expand:"200字程度のひと段落にまとめてください"},
+        {label:"しっかり詳しく",expand:"要点を落とさず、詳しくまとめてください"},
+        {label:"元の半分くらい",expand:"元の分量の半分程度にまとめてください"},
+      ]},
+    {id:"limit",section:"制約条件",type:"textarea",
+      q:"制約条件はある？",hint:"任意。落としたくない要素、省いてよい部分など",placeholder:"例：決定事項と担当者は必ず残してください"},
   ],
   improve:[
     {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
-      q:"何を直したい？",hint:"対象と、どうしたいか（本文は次で貼れます）",placeholder:"例：この文章をもっと分かりやすくしたい"},
+      q:"何を確認したい？",hint:"不備がないか見てほしい対象を一言で（本文は次で貼れます）",placeholder:"例：この提案書に不備がないか見てほしい"},
     {id:"body",section:"対象本文",type:"textarea",keepEmpty:true,emptyText:"（ここに対象の本文を貼り付けてください）",
       q:"対象の本文はある？",hint:"任意。ここで貼ってもOK。空欄なら指示文に貼付欄を残します",placeholder:"対象のテキストを貼り付け…"},
     {id:"angle",section:"見てほしい観点",type:"multi",
-      q:"どの観点でチェックする？",options:["わかりやすさ","論理・構成","誤り・事実確認","トーン・言い回し","簡潔さ"]},
-    {id:"scope",section:"手を入れる範囲",type:"single",
-      q:"どこまで直す？",options:["指摘だけ","修正案も提示","全面的に書き直し"]},
+      q:"どの観点でチェックする？",options:[
+        {label:"わかりやすさ",expand:"わかりやすさの観点でチェックしてください"},
+        {label:"論理・構成",expand:"論理・構成の観点でチェックしてください"},
+        {label:"誤り・事実確認",expand:"誤りや事実関係を確認してください"},
+        {label:"トーン・言い回し",expand:"トーン・言い回しの観点でチェックしてください"},
+        {label:"簡潔さ",expand:"簡潔さの観点でチェックしてください"},
+      ]},
+    {id:"scope",section:"対応してほしい範囲",type:"single",
+      q:"どこまで対応してほしい？",options:[
+        {label:"指摘だけ",expand:"修正はせず、問題点の指摘に留めてください"},
+        {label:"修正案も提示",expand:"指摘に加えて、具体的な修正案も示してください"},
+      ]},
+    {id:"limit",section:"制約条件",type:"textarea",
+      q:"制約条件はある？",hint:"任意。変えてほしくない部分、前提など",placeholder:"例：見出しの構成は変えないでください"},
+  ],
+  rewrite:[
+    {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
+      q:"何をどう変えたい？",hint:"対象と、どうしたいかを一言で（本文は次で貼れます）",placeholder:"例：この記事をもっと簡潔にしたい"},
+    {id:"body",section:"対象本文",type:"textarea",keepEmpty:true,emptyText:"（ここに対象の本文を貼り付けてください）",
+      q:"対象の本文はある？",hint:"任意。ここで貼ってもOK。空欄なら指示文に貼付欄を残します",placeholder:"対象のテキストを貼り付け…"},
     {id:"tone",section:"仕上がりの方向",type:"single",
-      q:"どう仕上げる？",options:["元の雰囲気を保つ","もっと丁寧に","もっと簡潔に","もっと専門的に"]},
-    {id:"limit",section:"残すもの・制約",type:"textarea",
-      q:"変えてほしくない部分は？",placeholder:"なければ空欄でOK"},
+      q:"どう仕上げる？",options:[
+        {label:"元の雰囲気を保つ",expand:"元の文章の雰囲気は保ったまま直してください"},
+        {label:"もっと丁寧に",expand:"全体をより丁寧な表現にしてください"},
+        {label:"もっと簡潔に",expand:"全体をより簡潔にしてください"},
+        {label:"もっと専門的に",expand:"全体をより専門的な表現にしてください"},
+        {label:"全面的に書き直し",expand:"全面的に書き直した完成版を提示してください"},
+      ]},
+    {id:"limit",section:"制約条件",type:"textarea",
+      q:"制約条件はある？",hint:"任意。変えてほしくない部分、守ってほしい形式など",placeholder:"例：タイトルはそのままにしてください"},
   ],
   consult:[
     {id:"goal",kind:"goal",section:"依頼",type:"textarea",required:true,
@@ -215,11 +300,21 @@ const bank = {
     {id:"ctx",section:"状況・前提",type:"textarea",
       q:"今の状況・前提は？",placeholder:"例：フォロワー◯人、記事は◯本公開済み"},
     {id:"want",section:"ほしいもの",type:"single",
-      q:"何がほしい？",options:["アイデアを広げる","選択肢を整理","メリット/デメリット比較","意見・おすすめ","考えの壁打ち"]},
+      q:"何がほしい？",options:[
+        {label:"アイデアを広げる",expand:"アイデアを幅広く広げてください"},
+        {label:"選択肢を整理",expand:"選択肢を整理して提示してください"},
+        {label:"メリット/デメリット比較",expand:"メリット・デメリットを比較して示してください"},
+        {label:"意見・おすすめ",expand:"あなたの意見・おすすめを述べてください"},
+        {label:"考えの壁打ち",expand:"壁打ち相手として、考えを深める質問や視点を返してください"},
+      ]},
     {id:"style",section:"進め方",type:"single",
-      q:"どう進める？",options:["まず質問を返してほしい","一気に案を出して","段階的に一緒に"]},
-    {id:"limit",section:"制約・前提",type:"textarea",
-      q:"制約や外せない条件は？",placeholder:"なければ空欄でOK"},
+      q:"どう進める？",options:[
+        {label:"まず質問を返してほしい",expand:"まず状況を把握するための質問を返してください"},
+        {label:"一気に案を出して",expand:"質問を挟まず、まず案を一気に出してください"},
+        {label:"段階的に一緒に",expand:"一段階ずつ、対話しながら進めてください"},
+      ]},
+    {id:"limit",section:"制約条件",type:"textarea",
+      q:"制約条件はある？",hint:"任意。予算・期間などの前提、外したい選択肢など",placeholder:"例：追加コストがかかる案は除いてください"},
   ],
 };
 
@@ -229,7 +324,8 @@ const COMMON_RULES = `【共通ルール】
 ・過度な同意やお世辞は不要。必要な指摘や反論は率直に述べてください。
 ・事実と推測を区別し、確信が持てない点は推測で補わず「不明」と明記してください。
 ・数値・固有名詞・日付・出典などの具体情報は、根拠がなければ創作せず「要確認」としてください。
-・情報が存在しない場合は、無理に答えを作らないでください。`;
+・情報が存在しない場合は、無理に答えを作らないでください。
+・前提が不足していて答えが大きく変わる場合は、推測で進めず先に質問してください。`;
 
 /* ---------- 説明レベル ---------- */
 const LITERACY = [
@@ -242,13 +338,61 @@ const LITERACY = [
 const COMMON_QUESTIONS = [
   {id:"__role",section:"役割",type:"text",common:true,
     q:"どんな立場・専門家として答えてほしい？",hint:"任意。指定すると「役割」として指示文に反映されます",placeholder:"例：GA4に詳しいマーケティングアナリスト"},
+  {id:"__done",section:"完成度",type:"single",required:true,common:true,
+    q:"どこまでの完成度を求める？",hint:"仕上がりの水準が変わります（初期値：実務で使えるレベル）",
+    options:[
+      {label:"たたき台でいい",expand:"完成度よりも速さと方向性を優先し、たたき台として提示してください"},
+      {label:"実務で使えるレベル",expand:"実務でそのまま使える精度・完成度で仕上げてください"},
+      {label:"そのまま公開できる品質",expand:"誤りのない、公開可能な品質で仕上げてください"},
+    ]},
   {id:"__lit",section:"説明レベル",type:"single",required:true,common:true,
-    q:"あなたのリテラシー（説明レベル）は？",hint:"回答の噛み砕き具合が変わります",
+    q:"あなたのリテラシー（説明レベル）は？",hint:"回答の噛み砕き具合が変わります（初期値：社会人・高リテラシー）",
     options:["高校生向け","社会人・低リテラシー","社会人・高リテラシー"]},
 ];
 
 /* ---------- 役割入力のタスク別プレースホルダ ---------- */
-const ROLE_EG={research:"GA4に詳しいアナリスト",create:"プロの編集者・ライター",analyze:"データアナリスト",summarize:"要点整理が得意な編集者",improve:"厳しめの校正・編集者",consult:"壁打ち役のコンサルタント"};
+const ROLE_EG={research:"GA4に詳しいアナリスト",create:"プロの編集者・ライター",analyze:"データアナリスト",summarize:"要点整理が得意な編集者",improve:"厳しめの校正・編集者",rewrite:"プロのリライター",consult:"壁打ち役のコンサルタント"};
+
+/* ---------- フリー入力からのタスク自動判定（意図パターン方式） ---------- */
+/* 名詞ではなく述語（〜したい／〜してほしい 等の言い回し）でマッチさせる。単語の一致ではなく意図の表現で判定する。 */
+const INTENT_PATTERNS = {
+  research:["知りたい","教えて","はどうなって","とは何","って何","調べ","リサーチして","最新の","把握したい","理解したい","とはどういう","の意味"],
+  create:["書いて","書きたい","作って","作りたい","作成して","伝えたい","共有したい","説明資料","案を出して","下書き","文章にして","文章にしたい","記事にして","記事にしたい","資料にして","資料にしたい"],
+  analyze:["の原因","の傾向","分析して","分析したい","比較して","なぜ増え","なぜ減っ","要因は","数値を見て","何が影響"],
+  summarize:["まとめて","まとめたい","要約して","要約したい","短くまとめ","簡潔にまとめ","整理してほしい","要点だけ","要点を"],
+  improve:["添削して","校正して","見てほしい","これで合ってる","これで正しい","間違ってないか","チェックして","レビューして","おかしい点","問題ないか","おかしくないか","不備がないか","確認してほしい"],
+  rewrite:["直して","直したい","書き直","作り直","リライト","推敲し","もっと簡潔に","もっと丁寧に","改善して"],
+  consult:["どうすれば","どっちがいい","どれがいい","最適な","おすすめは","相談したい","悩んでいる","迷っている","メリットデメリット","比較して決めたい","どちらが良い","提案してほしい","どう進めれば","アドバイス","意見を聞きたい"],
+};
+/* 文だけでは判定不能な言い回し。該当カテゴリ双方に均等加点し、2候補提示に倒す */
+const INTENT_AMBIGUOUS = [
+  {patterns:["確認したい"],cats:["research","improve"]},
+  {patterns:["説明して","解説して","紹介して"],cats:["research","create"]},
+  {patterns:["の違い","との違い"],cats:["research","analyze"]},
+  {patterns:["何が問題","どこが問題","問題点"],cats:["analyze","improve"]},
+  {patterns:["ブラッシュアップして"],cats:["rewrite","consult"]},
+  {patterns:["どう思う"],cats:["consult","improve"]},
+  {patterns:["わかりやすくして","分かりやすくして","読みやすくして"],cats:["improve","rewrite"]},
+];
+function classifyIntent(text){
+  const rawScores={};Object.keys(INTENT_PATTERNS).forEach(c=>rawScores[c]=0);
+  Object.entries(INTENT_PATTERNS).forEach(([cat,pats])=>{pats.forEach(p=>{if(text.includes(p))rawScores[cat]++;});});
+  const scores=Object.assign({},rawScores);
+  INTENT_AMBIGUOUS.forEach(a=>{if(a.patterns.some(p=>text.includes(p))){a.cats.forEach(c=>scores[c]++);}});
+  /* 複合依頼（調査→作成の2パス案内）は、曖昧語の加点を含めない辞書本来のスコアで判定する。
+     曖昧語（例：説明して）はresearch/create双方に加点されるため、含めるとタイブレークすべき
+     「単一タスクだがカテゴリが決めきれない」ケースまで複合依頼と誤検知してしまう。 */
+  const complexNote=(rawScores.research>0&&rawScores.create>0);
+  let top;
+  if(complexNote){
+    top=["research"]; // 調べてから作る、が自然な順序なので起点として提案
+  }else{
+    const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+    const max=sorted[0][1];
+    top=max>0?sorted.filter(([,v])=>v===max).slice(0,3).map(([c])=>c):[];
+  }
+  return{scores,top,complexNote};
+}
 
 /* ---------- 状態 ---------- */
 let state={purpose:null,step:0,answers:{},includeRules:true};
@@ -265,16 +409,78 @@ function qs(){return bank[state.purpose].concat(COMMON_QUESTIONS);}
 function pad(n){return String(n).padStart(2,"0");}
 function catTitle(){return (purposes.find(p=>p.id===state.purpose)||{}).t||"";}
 
+function startWithPurpose(catId,freeText){
+  const keepAnswers=(state.purpose===catId&&state.answers&&Object.keys(state.answers).length>0);
+  state.purpose=catId;state.step=0;
+  if(!keepAnswers){state.answers={__lit:"社会人・高リテラシー",__done:"実務で使えるレベル"};}
+  const goalQ=bank[catId].find(q=>q.kind==="goal");
+  if(goalQ&&freeText){
+    state.answers[goalQ.id]=(goalQ.type==="chipstext")?{chips:[],text:freeText}:freeText;
+  }
+  renderQuestion();
+}
+
 function renderStart(){
   document.getElementById("restart")?.remove();
   bar.style.display="none";nav.style.display="none";
-  let html=`<div class="fade"><p class="lead">どんなタスク？</p><p class="sub">お願いする作業の種類で選ぶと、それに合った質問が出ます。</p><div class="grid">`;
+  let html=`<div class="fade">
+    <p class="lead">どんなタスク？</p>
+    <p class="sub">やりたいことを書くと、あてはまりそうなタスクを提案します。もちろん下から直接選んでもOKです。</p>
+    <div class="intent-box">
+      <label class="cs-label" for="intentInp">やりたいことを入力（任意）</label>
+      <textarea id="intentInp" placeholder="例：GA4のfirst_visitの仕様を調べて記事にしたい"></textarea>
+      <div class="keyhint">⌘/Ctrl + Enter で判定</div>
+      <div class="intent-disclaimer">※ 文中の述語（「〜したい」「〜してほしい」等の言い回し）のパターンから判定しています。単語の一致ではなく言い回しで判定するため、外れることがあります。</div>
+      <button class="btn next" id="judgeBtn" type="button">この内容で判定する</button>
+      <div class="intent-result" id="intentResult" style="display:none;"></div>
+    </div>
+    <div class="or-divider">または、カテゴリを直接選ぶ</div>
+    <div class="grid">`;
   purposes.forEach(p=>{
     html+=`<button class="purpose" data-p="${p.id}"><span class="pn">${p.n}</span><span class="pt">${p.t}</span><span class="pd">${p.d}</span></button>`;
   });
   html+=`</div></div>`;
   stage.innerHTML=html;
-  stage.querySelectorAll(".purpose").forEach(b=>{b.onclick=()=>{state.purpose=b.dataset.p;state.step=0;state.answers={__lit:"社会人・高リテラシー"};renderQuestion();};});
+  stage.querySelectorAll(".purpose").forEach(b=>{b.onclick=()=>startWithPurpose(b.dataset.p,"");});
+
+  const intentInp=document.getElementById("intentInp");
+  const judgeBtn=document.getElementById("judgeBtn");
+  const resultEl=document.getElementById("intentResult");
+  let intentComposing=false;
+  intentInp.addEventListener("compositionstart",()=>intentComposing=true);
+  intentInp.addEventListener("compositionend",()=>intentComposing=false);
+  intentInp.addEventListener("input",()=>{
+    // 入力が変わったら古い判定結果は破棄する（古い提案のまま進めてしまうのを防ぐ）
+    if(resultEl.style.display!=="none"){resultEl.style.display="none";resultEl.innerHTML="";}
+  });
+  intentInp.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)&&!intentComposing&&!e.isComposing){e.preventDefault();judgeBtn.click();}
+  });
+  judgeBtn.onclick=()=>{
+    const text=intentInp.value.trim();
+    resultEl.style.display="block";
+    if(!text){resultEl.innerHTML=`<p class="intent-empty">入力してから判定してください。</p>`;return;}
+    const r=classifyIntent(text);
+    if(!r.top.length){
+      resultEl.innerHTML=`<p class="intent-empty">うまく判定できませんでした。下のカテゴリから選んでください。</p>`;return;
+    }
+    const titleOf=(id)=>(purposes.find(p=>p.id===id)||{}).t||id;
+    let h="";
+    if(r.top.length===1){
+      h+=`<p class="intent-lead">「<strong>${titleOf(r.top[0])}</strong>」だと思われます。</p>`;
+    }else{
+      const names=r.top.map(c=>`「<strong>${titleOf(c)}</strong>」`).join("・");
+      h+=`<p class="intent-lead">${names} のいずれかと思われます。近いものを選んでください。</p>`;
+    }
+    h+=`<div class="intent-cands">`;
+    r.top.forEach((c)=>{h+=`<div class="intent-cand" data-c="${c}">${titleOf(c)}で進める</div>`;});
+    h+=`</div>`;
+    if(r.complexNote){
+      h+=`<p class="intent-note">「調査」と「作成」の両方の要素があるようです。まず調査で内容を固めてから、別途「作成」で仕上げるのがおすすめです。</p>`;
+    }
+    resultEl.innerHTML=h;
+    resultEl.querySelectorAll(".intent-cand").forEach(el=>{el.onclick=()=>startWithPurpose(el.dataset.c,text);});
+  };
 }
 
 function renderQuestion(){
@@ -306,7 +512,7 @@ function renderQuestion(){
   }else{
     const multi=q.type==="multi";const sel=Array.isArray(val)?val:(val?[val]:[]);
     inner+=`<div class="chips">`;
-    q.options.forEach(o=>{const on=sel.includes(o);inner+=`<div class="chip ${multi?'multi':'single'} ${on?'sel':''}" data-o="${escapeAttr(o)}"><span class="box"></span>${o}</div>`;});
+    q.options.forEach(o=>{const lbl=(typeof o==="object")?o.label:o;const on=sel.includes(lbl);inner+=`<div class="chip ${multi?'multi':'single'} ${on?'sel':''}" data-o="${escapeAttr(lbl)}"><span class="box"></span>${lbl}</div>`;});
     inner+=`</div>`;
     if(multi) inner+=`<div class="multihint">複数選べます</div>`;
   }
@@ -390,6 +596,13 @@ function assemble(){
       return;
     }
     if(q.id==="__role"){const v=(a.__role||"").trim();if(v)out+=`## 役割\nあなたは${v}として回答してください。\n\n`;return;}
+    if((q.type==="single"||q.type==="multi")&&(q.options||[]).some(o=>typeof o==="object")){
+      const v=a[q.id];const sel=Array.isArray(v)?v:(v?[v]:[]);
+      if(!sel.length)return;
+      const lines=sel.map(lbl=>{const opt=q.options.find(o=>(typeof o==="object"?o.label:o)===lbl);return "・"+(opt&&opt.expand?opt.expand:lbl);});
+      out+=`## ${q.section}\n${lines.join("\n")}\n\n`;
+      return;
+    }
     if(q.id==="__lit"){const lit=LITERACY.find(l=>l.v===a.__lit);if(lit)out+=`## 説明レベル\n${lit.rule}\n\n`;return;}
     let v=a[q.id];if(Array.isArray(v))v=v.join("、");
     if(!v||!String(v).trim()){if(q.keepEmpty)out+=`## ${q.section}\n${q.emptyText}\n\n`;return;}
@@ -432,7 +645,7 @@ function copyOut(){
 }
 
 function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-function escapeAttr(s){return s.replace(/"/g,"&quot;");}
+function escapeAttr(s){return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 renderStart();
 </script>
 </body>
