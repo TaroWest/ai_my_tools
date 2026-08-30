@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LP部品組み立てツール（プロトタイプ）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --ink:#16202e;
+  --ink-mute:#5a6b80;
+  --paper:#eef1f6;
+  --surface:#ffffff;
+  --line:#d5dce6;
+  --line-soft:#e7ebf2;
+  --accent:#2f5fd8;
+  --accent-soft:#e8effc;
+  --accent-deep:#1f45a8;
+  --output:#0e7a63;
+  --danger:#b03030;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+[x-cloak]{display:none!important}
+
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px 80px}
+
+/* ---- header ---- */
+.masthead{border-bottom:1px solid var(--line);background:var(--surface)}
+.masthead__inner{max-width:1040px;margin:0 auto;padding:20px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.masthead__title{font-size:17px;font-weight:700;letter-spacing:.02em;margin:0}
+.masthead__tag{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mute)}
+
+/* ---- step rail ---- */
+.rail{display:flex;gap:0;margin:28px 0 26px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.rail__item{
+  flex:1;display:flex;align-items:center;gap:10px;padding:13px 14px;
+  border:0;border-right:1px solid var(--line-soft);background:transparent;
+  font-family:var(--sans);font-size:13px;color:var(--ink-mute);text-align:left;
+  cursor:pointer;transition:background .15s;
+}
+.rail__item:last-child{border-right:0}
+.rail__item:hover:not(:disabled){background:#f6f8fc}
+.rail__item:disabled{cursor:not-allowed;opacity:.5}
+.rail__item[aria-current="step"]{background:var(--accent-soft);color:var(--accent-deep);font-weight:700}
+.rail__num{font-family:var(--mono);font-size:11px;border:1px solid currentColor;border-radius:3px;padding:1px 5px;flex:none}
+.rail__item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* ---- panels ---- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:24px;margin-bottom:18px}
+.panel__head{margin:0 0 6px;font-size:16px;font-weight:700}
+.panel__lead{margin:0 0 20px;font-size:13px;color:var(--ink-mute)}
+.subhead{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mute);margin:0 0 10px}
+
+/* ---- form ---- */
+label{display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:var(--ink)}
+.hint{font-weight:400;color:var(--ink-mute);margin-left:6px}
+input[type=text],input[type=url],input[type=number],select,textarea{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
+  font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--surface);
+}
+textarea{resize:vertical;min-height:82px;line-height:1.6}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.field{margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.checkline{display:flex;align-items:center;gap:8px;font-size:13px}
+.checkline input{width:auto}
+.checkline label{margin:0;font-weight:400}
+
+/* ---- buttons ---- */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:4px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;transition:.15s;
+}
+.btn:hover:not(:disabled){border-color:var(--ink-mute)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn--primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn--primary:hover:not(:disabled){background:var(--accent-deep);border-color:var(--accent-deep)}
+.btn--output{background:var(--output);border-color:var(--output);color:#fff}
+.btn--output:hover:not(:disabled){filter:brightness(.92)}
+.btn--sm{padding:5px 10px;font-size:12px}
+.btn--ghost{border-style:dashed;color:var(--ink-mute)}
+.btn--danger{color:var(--danger);border-color:#e6c9c9}
+.btn--danger:hover:not(:disabled){border-color:var(--danger)}
+.iconbtn{
+  width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:4px;background:var(--surface);
+  cursor:pointer;font-size:13px;line-height:1;color:var(--ink-mute);
+}
+.iconbtn:hover:not(:disabled){border-color:var(--ink-mute);color:var(--ink)}
+.iconbtn:disabled{opacity:.3;cursor:not-allowed}
+.iconbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* ---- palette ---- */
+.palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:8px}
+.palette__btn{
+  text-align:left;padding:11px 13px;border:1px solid var(--line);border-radius:5px;
+  background:var(--surface);cursor:pointer;font-family:var(--sans);transition:.15s;
+}
+.palette__btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+.palette__btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.palette__name{display:block;font-size:13px;font-weight:700;margin-bottom:2px}
+.palette__desc{display:block;font-size:11px;color:var(--ink-mute);line-height:1.5}
+.group-gap{margin-top:22px}
+
+/* ---- section list ---- */
+.slist{list-style:none;margin:0;padding:0}
+.slist__item{
+  display:flex;align-items:center;gap:12px;padding:11px 13px;
+  border:1px solid var(--line);border-radius:5px;margin-bottom:8px;background:var(--surface);
+}
+.slist__order{font-family:var(--mono);font-size:12px;color:var(--ink-mute);flex:none;width:22px}
+.slist__name{flex:1;font-size:14px;font-weight:700}
+.slist__kind{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-mute);border:1px solid var(--line);border-radius:3px;padding:1px 6px;flex:none}
+.slist__ctrl{display:flex;gap:5px;flex:none}
+
+.empty{
+  border:1px dashed var(--line);border-radius:5px;padding:26px;text-align:center;
+  color:var(--ink-mute);font-size:13px;
+}
+
+/* ---- editor card ---- */
+.editor{border:1px solid var(--line);border-radius:6px;margin-bottom:16px;overflow:hidden}
+.editor__head{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;
+  background:#f6f8fc;border-bottom:1px solid var(--line);
+}
+.editor__order{font-family:var(--mono);font-size:12px;color:var(--ink-mute)}
+.editor__name{font-size:14px;font-weight:700}
+.editor__body{padding:16px 14px}
+.item{border:1px solid var(--line-soft);border-radius:5px;padding:13px;margin-bottom:10px;background:#fbfcfe}
+.item__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.item__label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-mute)}
+
+/* ---- review ---- */
+.review{border:1px solid var(--line);border-radius:6px;margin-bottom:14px}
+.review__head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f6f8fc;border-bottom:1px solid var(--line)}
+.rtable{width:100%;border-collapse:collapse;font-size:13px}
+.rtable th,.rtable td{border-bottom:1px solid var(--line-soft);padding:8px 14px;text-align:left;vertical-align:top}
+.rtable th{width:190px;font-weight:700;color:var(--ink-mute);background:#fcfdff}
+.rtable tr:last-child th,.rtable tr:last-child td{border-bottom:0}
+.rtable td{white-space:pre-wrap;word-break:break-word}
+.blank{color:#a3aec0}
+.rgroup{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-mute);background:#f2f5fa;padding:5px 14px;border-bottom:1px solid var(--line-soft)}
+
+.warn{
+  border:1px solid #e3d3a8;background:#fdf8ea;border-radius:5px;
+  padding:12px 14px;font-size:13px;margin-bottom:16px;
+}
+.warn__title{font-weight:700;margin:0 0 4px}
+.warn ul{margin:4px 0 0;padding-left:18px}
+
+/* ---- output ---- */
+.files{display:flex;gap:0;border:1px solid var(--line);border-radius:5px 5px 0 0;overflow:hidden;background:#f6f8fc}
+.files__tab{
+  padding:9px 15px;border:0;border-right:1px solid var(--line);background:transparent;
+  font-family:var(--mono);font-size:12px;color:var(--ink-mute);cursor:pointer;
+}
+.files__tab:last-child{border-right:0}
+.files__tab[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent)}
+.files__tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.code{
+  margin:0;border:1px solid var(--line);border-top:0;border-radius:0 0 5px 5px;
+  background:#101a28;color:#dbe4f0;padding:16px;overflow:auto;max-height:440px;
+  font-family:var(--mono);font-size:12px;line-height:1.65;white-space:pre;
+}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.status{font-size:12px;color:var(--ink-mute)}
+.status--err{color:var(--danger)}
+
+.footbar{display:flex;justify-content:space-between;gap:10px;margin-top:22px}
+
+.note{font-size:12px;color:var(--ink-mute);margin-top:16px}
+.autosave{font-family:var(--mono);font-size:11px;color:var(--ink-mute)}
+
+@media(max-width:720px){
+  .rail{flex-wrap:wrap}
+  .rail__item{flex:1 1 50%;border-bottom:1px solid var(--line-soft)}
+  .grid2{grid-template-columns:1fr}
+  .rtable th{width:130px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead__inner">
+    <h1 class="masthead__title">LP部品組み立てツール</h1>
+    <span class="masthead__tag">prototype / phase 1</span>
+  </div>
+</header>
+
+<div class="wrap" x-data="builder" x-cloak>
+
+  <!-- step rail -->
+  <nav class="rail" aria-label="作成ステップ">
+    <template x-for="s in steps" :key="s.no">
+      <button class="rail__item" type="button"
+              :aria-current="step === s.no ? 'step' : false"
+              :disabled="!canJump(s.no)"
+              @click="goto(s.no)">
+        <span class="rail__num" x-text="'0' + s.no"></span>
+        <span x-text="s.label"></span>
+      </button>
+    </template>
+  </nav>
+
+  <!-- ============ STEP 1 ============ -->
+  <div x-show="step === 1">
+    <section class="panel">
+      <h2 class="panel__head">ページの基本設定</h2>
+      <p class="panel__lead">出力するHTMLの &lt;title&gt; と言語設定です。</p>
+      <div class="grid2">
+        <div class="field">
+          <label for="pageTitle">ページタイトル</label>
+          <input id="pageTitle" type="text" x-model="page.title" placeholder="例：新サービス紹介ページ">
+        </div>
+        <div class="field">
+          <label for="pageLang">言語（lang属性）</label>
+          <select id="pageLang" x-model="page.lang">
+            <option value="ja">日本語（ja）</option>
+            <option value="en">English（en）</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel__head">セクションを追加する</h2>
+      <p class="panel__lead">レイアウトパターンと基本パーツを選んで、ページの構成を組み立てます。</p>
+
+      <p class="subhead">レイアウトパターン</p>
+      <div class="palette">
+        <template x-for="def in defsByGroup('layout')" :key="def.type">
+          <button class="palette__btn" type="button" @click="addSection(def.type)">
+            <span class="palette__name" x-text="def.label"></span>
+            <span class="palette__desc" x-text="def.desc"></span>
+          </button>
+        </template>
+      </div>
+
+      <p class="subhead group-gap">基本パーツ</p>
+      <div class="palette">
+        <template x-for="def in defsByGroup('basic')" :key="def.type">
+          <button class="palette__btn" type="button" @click="addSection(def.type)">
+            <span class="palette__name" x-text="def.label"></span>
+            <span class="palette__desc" x-text="def.desc"></span>
+          </button>
+        </template>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel__head">ページ構成</h2>
+      <p class="panel__lead">上から順にページへ配置されます。矢印で並び順を変更できます。</p>
+
+      <div class="empty" x-show="sections.length === 0">
+        セクションがまだありません。上のボタンから追加してください。
+      </div>
+
+      <ul class="slist" x-show="sections.length > 0">
+        <template x-for="(sec, i) in sections" :key="sec.id">
+          <li class="slist__item">
+            <span class="slist__order" x-text="String(i + 1).padStart(2,'0')"></span>
+            <span class="slist__name" x-text="defOf(sec).label"></span>
+            <span class="slist__kind" x-text="defOf(sec).group === 'layout' ? 'layout' : 'part'"></span>
+            <span class="slist__ctrl">
+              <button class="iconbtn" type="button" :disabled="i === 0" @click="move(i,-1)" :aria-label="'「'+defOf(sec).label+'」を上へ移動'">↑</button>
+              <button class="iconbtn" type="button" :disabled="i === sections.length - 1" @click="move(i,1)" :aria-label="'「'+defOf(sec).label+'」を下へ移動'">↓</button>
+              <button class="iconbtn" type="button" @click="removeSection(i)" :aria-label="'「'+defOf(sec).label+'」を削除'">×</button>
+            </span>
+          </li>
+        </template>
+      </ul>
+    </section>
+
+    <div class="footbar">
+      <span></span>
+      <button class="btn btn--primary" type="button" :disabled="sections.length === 0" @click="goto(2)">
+        各セクションの入力へ進む →
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ STEP 2 ============ -->
+  <div x-show="step === 2">
+    <section class="panel">
+      <h2 class="panel__head">各セクションの中身を入力する</h2>
+      <p class="panel__lead">空欄のまま進めることもできます。空欄の項目は、出力されるコードから省略されます。</p>
+    </section>
+
+    <template x-for="(sec, i) in sections" :key="sec.id">
+      <div class="editor">
+        <div class="editor__head">
+          <span class="editor__order" x-text="String(i + 1).padStart(2,'0')"></span>
+          <span class="editor__name" x-text="defOf(sec).label"></span>
+        </div>
+        <div class="editor__body">
+
+          <!-- メインビジュアル -->
+          <template x-if="sec.type === 'mainVisual'">
+            <div>
+              <div class="grid2">
+                <div class="field">
+                  <label>メディア種別</label>
+                  <select x-model="sec.data.mediaType">
+                    <option value="image">画像</option>
+                    <option value="video">動画</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>メディアのURL / パス</label>
+                  <input type="text" x-model="sec.data.src" placeholder="images/hero.jpg">
+                </div>
+              </div>
+              <div class="field" x-show="sec.data.mediaType === 'image'">
+                <label>代替テキスト<span class="hint">画像の内容を説明する文</span></label>
+                <input type="text" x-model="sec.data.alt">
+              </div>
+              <div class="field">
+                <label>キャッチコピー</label>
+                <input type="text" x-model="sec.data.catch">
+              </div>
+              <div class="field">
+                <label>サブコピー</label>
+                <textarea x-model="sec.data.sub"></textarea>
+              </div>
+              <div class="grid2">
+                <div class="field">
+                  <label>ボタンのラベル<span class="hint">空欄ならボタンなし</span></label>
+                  <input type="text" x-model="sec.data.buttonLabel">
+                </div>
+                <div class="field">
+                  <label>ボタンのリンク先</label>
+                  <input type="text" x-model="sec.data.buttonUrl" placeholder="#contact">
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- テキスト -->
+          <template x-if="sec.type === 'text'">
+            <div>
+              <div class="field">
+                <label>見出し</label>
+                <input type="text" x-model="sec.data.heading">
+              </div>
+              <div class="field">
+                <label>本文<span class="hint">空行で区切ると段落が分かれます</span></label>
+                <textarea x-model="sec.data.body" rows="6"></textarea>
+              </div>
+            </div>
+          </template>
+
+          <!-- 画像 -->
+          <template x-if="sec.type === 'image'">
+            <div>
+              <div class="field">
+                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                <input type="text" x-model="sec.data.heading">
+              </div>
+              <div class="grid2">
+                <div class="field">
+                  <label>画像のURL / パス</label>
+                  <input type="text" x-model="sec.data.src" placeholder="images/photo.jpg">
+                </div>
+                <div class="field">
+                  <label>代替テキスト</label>
+                  <input type="text" x-model="sec.data.alt">
+                </div>
+              </div>
+              <div class="field">
+                <label>キャプション<span class="hint">空欄ならキャプションなし</span></label>
+                <input type="text" x-model="sec.data.caption">
+              </div>
+            </div>
+          </template>
+
+          <!-- ボタン -->
+          <template x-if="sec.type === 'button'">
+            <div class="grid2">
+              <div class="field">
+                <label>ラベル</label>
+                <input type="text" x-model="sec.data.label" placeholder="お問い合わせはこちら">
+              </div>
+              <div class="field">
+                <label>リンク先</label>
+                <input type="text" x-model="sec.data.url" placeholder="#contact">
+              </div>
+              <div class="field">
+                <label>配置</label>
+                <select x-model="sec.data.align">
+                  <option value="left">左寄せ</option>
+                  <option value="center">中央</option>
+                  <option value="right">右寄せ</option>
+                </select>
+              </div>
+            </div>
+          </template>
+
+          <!-- カードグリッド -->
+          <template x-if="sec.type === 'cardGrid'">
+            <div>
+              <div class="grid2">
+                <div class="field">
+                  <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                  <input type="text" x-model="sec.data.heading">
+                </div>
+                <div class="field">
+                  <label>カラム数</label>
+                  <select x-model="sec.data.columns">
+                    <option value="2">2列</option>
+                    <option value="3">3列</option>
+                    <option value="4">4列</option>
+                  </select>
+                </div>
+              </div>
+              <template x-for="(card, ci) in sec.data.cards" :key="ci">
+                <div class="item">
+                  <div class="item__head">
+                    <span class="item__label" x-text="'CARD ' + (ci + 1)"></span>
+                    <button class="btn btn--sm btn--danger" type="button" :disabled="sec.data.cards.length <= 1" @click="sec.data.cards.splice(ci,1)">削除</button>
+                  </div>
+                  <div class="grid2">
+                    <div class="field">
+                      <label>画像のURL / パス<span class="hint">空欄なら画像なし</span></label>
+                      <input type="text" x-model="card.src">
+                    </div>
+                    <div class="field">
+                      <label>代替テキスト</label>
+                      <input type="text" x-model="card.alt">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>カードの見出し</label>
+                    <input type="text" x-model="card.title">
+                  </div>
+                  <div class="field">
+                    <label>カードの本文</label>
+                    <textarea x-model="card.body"></textarea>
+                  </div>
+                  <div class="grid2">
+                    <div class="field">
+                      <label>ボタンのラベル<span class="hint">空欄ならボタンなし</span></label>
+                      <input type="text" x-model="card.buttonLabel">
+                    </div>
+                    <div class="field">
+                      <label>ボタンのリンク先</label>
+                      <input type="text" x-model="card.buttonUrl">
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <button class="btn btn--ghost btn--sm" type="button" @click="sec.data.cards.push(newCard())">＋ カードを追加</button>
+            </div>
+          </template>
+
+          <!-- アコーディオン -->
+          <template x-if="sec.type === 'accordion'">
+            <div>
+              <div class="field">
+                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                <input type="text" x-model="sec.data.heading">
+              </div>
+              <template x-for="(item, ii) in sec.data.items" :key="ii">
+                <div class="item">
+                  <div class="item__head">
+                    <span class="item__label" x-text="'ITEM ' + (ii + 1)"></span>
+                    <button class="btn btn--sm btn--danger" type="button" :disabled="sec.data.items.length <= 1" @click="sec.data.items.splice(ii,1)">削除</button>
+                  </div>
+                  <div class="field">
+                    <label>開閉ボタンのテキスト</label>
+                    <input type="text" x-model="item.title">
+                  </div>
+                  <div class="field">
+                    <label>開いたときの本文</label>
+                    <textarea x-model="item.body"></textarea>
+                  </div>
+                </div>
+              </template>
+              <button class="btn btn--ghost btn--sm" type="button" @click="sec.data.items.push({title:'',body:''})">＋ 項目を追加</button>
+            </div>
+          </template>
+
+          <!-- タブ -->
+          <template x-if="sec.type === 'tabs'">
+            <div>
+              <div class="field">
+                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                <input type="text" x-model="sec.data.heading">
+              </div>
+              <template x-for="(item, ii) in sec.data.items" :key="ii">
+                <div class="item">
+                  <div class="item__head">
+                    <span class="item__label" x-text="'TAB ' + (ii + 1)"></span>
+                    <button class="btn btn--sm btn--danger" type="button" :disabled="sec.data.items.length <= 1" @click="sec.data.items.splice(ii,1)">削除</button>
+                  </div>
+                  <div class="field">
+                    <label>タブのラベル</label>
+                    <input type="text" x-model="item.label">
+                  </div>
+                  <div class="field">
+                    <label>タブの中身</label>
+                    <textarea x-model="item.body"></textarea>
+                  </div>
+                </div>
+              </template>
+              <button class="btn btn--ghost btn--sm" type="button" @click="sec.data.items.push({label:'',body:''})">＋ タブを追加</button>
+            </div>
+          </template>
+
+          <!-- カルーセル -->
+          <template x-if="sec.type === 'carousel'">
+            <div>
+              <div class="field">
+                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                <input type="text" x-model="sec.data.heading">
+              </div>
+              <div class="grid2">
+                <div class="field">
+                  <div class="checkline">
+                    <input type="checkbox" :id="'auto-' + sec.id" x-model="sec.data.autoplay">
+                    <label :for="'auto-' + sec.id">自動で切り替える</label>
+                  </div>
+                </div>
+                <div class="field" x-show="sec.data.autoplay">
+                  <label>切り替え間隔（ミリ秒）</label>
+                  <input type="number" min="1000" step="500" x-model="sec.data.interval">
+                </div>
+              </div>
+              <template x-for="(slide, si) in sec.data.slides" :key="si">
+                <div class="item">
+                  <div class="item__head">
+                    <span class="item__label" x-text="'SLIDE ' + (si + 1)"></span>
+                    <button class="btn btn--sm btn--danger" type="button" :disabled="sec.data.slides.length <= 1" @click="sec.data.slides.splice(si,1)">削除</button>
+                  </div>
+                  <div class="grid2">
+                    <div class="field">
+                      <label>画像のURL / パス</label>
+                      <input type="text" x-model="slide.src">
+                    </div>
+                    <div class="field">
+                      <label>代替テキスト</label>
+                      <input type="text" x-model="slide.alt">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>キャプション<span class="hint">空欄ならキャプションなし</span></label>
+                    <input type="text" x-model="slide.caption">
+                  </div>
+                </div>
+              </template>
+              <button class="btn btn--ghost btn--sm" type="button" @click="sec.data.slides.push({src:'',alt:'',caption:''})">＋ スライドを追加</button>
+            </div>
+          </template>
+
+          <!-- 比較表 -->
+          <template x-if="sec.type === 'comparisonTable'">
+            <div>
+              <div class="grid2">
+                <div class="field">
+                  <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                  <input type="text" x-model="sec.data.heading">
+                </div>
+                <div class="field">
+                  <label>左上のセルの見出し</label>
+                  <input type="text" x-model="sec.data.cornerLabel" placeholder="項目">
+                </div>
+              </div>
+
+              <div class="item">
+                <div class="item__head">
+                  <span class="item__label">COLUMNS（比較する対象）</span>
+                  <span style="display:flex;gap:6px">
+                    <button class="btn btn--sm" type="button" @click="addColumn(sec)">＋ 列を追加</button>
+                    <button class="btn btn--sm btn--danger" type="button" :disabled="sec.data.headers.length <= 1" @click="removeColumn(sec, sec.data.headers.length - 1)">末尾の列を削除</button>
+                  </span>
+                </div>
+                <template x-for="(h, hi) in sec.data.headers" :key="hi">
+                  <div class="field">
+                    <label x-text="'列 ' + (hi + 1) + ' の見出し'"></label>
+                    <input type="text" x-model="sec.data.headers[hi]">
+                  </div>
+                </template>
+              </div>
+
+              <template x-for="(row, ri) in sec.data.rows" :key="ri">
+                <div class="item">
+                  <div class="item__head">
+                    <span class="item__label" x-text="'ROW ' + (ri + 1)"></span>
+                    <button class="btn btn--sm btn--danger" type="button" :disabled="sec.data.rows.length <= 1" @click="sec.data.rows.splice(ri,1)">削除</button>
+                  </div>
+                  <div class="field">
+                    <label>行の見出し</label>
+                    <input type="text" x-model="row.label">
+                  </div>
+                  <template x-for="(h, hi) in sec.data.headers" :key="hi">
+                    <div class="field">
+                      <label x-text="(sec.data.headers[hi] || ('列 ' + (hi + 1))) + ' の値'"></label>
+                      <input type="text" x-model="row.values[hi]">
+                    </div>
+                  </template>
+                </div>
+              </template>
+              <button class="btn btn--ghost btn--sm" type="button" @click="addRow(sec)">＋ 行を追加</button>
+            </div>
+          </template>
+
+        </div>
+      </div>
+    </template>
+
+    <div class="footbar">
+      <button class="btn" type="button" @click="goto(1)">← 構成の編集に戻る</button>
+      <button class="btn btn--primary" type="button" @click="goto(3)">設定内容の確認へ進む →</button>
+    </div>
+  </div>
+
+  <!-- ============ STEP 3 ============ -->
+  <div x-show="step === 3">
+    <section class="panel">
+      <h2 class="panel__head">設定内容の確認</h2>
+      <p class="panel__lead">入力した内容の一覧です。修正が必要なら前のステップに戻ってください。</p>
+    </section>
+
+    <div class="warn" x-show="blanks().length > 0">
+      <p class="warn__title">未入力の項目があります</p>
+      <p style="margin:0;font-size:12px">このまま出力もできます。空欄の項目は出力されるコードから省略されます。</p>
+      <ul>
+        <template x-for="(w, wi) in blanks()" :key="wi">
+          <li x-text="w"></li>
+        </template>
+      </ul>
+    </div>
+
+    <div class="review">
+      <div class="review__head"><span class="editor__name">ページの基本設定</span></div>
+      <table class="rtable">
+        <tbody>
+          <tr>
+            <th scope="row">ページタイトル</th>
+            <td><span x-show="page.title" x-text="page.title"></span><span class="blank" x-show="!page.title">（未入力）</span></td>
+          </tr>
+          <tr>
+            <th scope="row">言語（lang属性）</th>
+            <td x-text="page.lang"></td>
+          </tr>
+          <tr>
+            <th scope="row">セクション数</th>
+            <td x-text="sections.length + ' 件'"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <template x-for="(sec, i) in sections" :key="sec.id">
+      <div class="review">
+        <div class="review__head">
+          <span class="editor__order" x-text="String(i + 1).padStart(2,'0')"></span>
+          <span class="editor__name" x-text="defOf(sec).label"></span>
+        </div>
+        <template x-for="(blk, bi) in reviewOf(sec)" :key="bi">
+          <div>
+            <div class="rgroup" x-show="blk.group" x-text="blk.group"></div>
+            <table class="rtable">
+              <tbody>
+                <template x-for="(row, ri) in blk.rows" :key="ri">
+                  <tr>
+                    <th scope="row" x-text="row[0]"></th>
+                    <td>
+                      <span x-show="row[1] !== ''" x-text="row[1]"></span>
+                      <span class="blank" x-show="row[1] === ''">（未入力）</span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <div class="footbar">
+      <button class="btn" type="button" @click="goto(2)">← 入力に戻る</button>
+      <button class="btn btn--output" type="button" @click="goto(4)">コードを出力する →</button>
+    </div>
+  </div>
+
+  <!-- ============ STEP 4 ============ -->
+  <div x-show="step === 4">
+    <section class="panel">
+      <h2 class="panel__head">出力</h2>
+      <p class="panel__lead">HTML / CSS / JavaScript の3ファイルに分けて生成しました。zipで一括ダウンロードできます。</p>
+
+      <div class="files" role="tablist" aria-label="出力ファイル">
+        <template x-for="f in fileList()" :key="f.name">
+          <button class="files__tab" type="button" role="tab"
+                  :aria-selected="activeFile === f.name"
+                  @click="activeFile = f.name"
+                  x-text="f.name"></button>
+        </template>
+      </div>
+      <pre class="code"><code x-text="currentCode()"></code></pre>
+
+      <div class="actions">
+        <button class="btn btn--output" type="button" @click="downloadZip()">zipで一括ダウンロード</button>
+        <button class="btn" type="button" @click="copyCurrent()" x-text="copied ? 'コピーしました' : '表示中のファイルをコピー'"></button>
+        <button class="btn" type="button" @click="downloadCurrent()">表示中のファイルを保存</button>
+        <span class="status" :class="{'status--err': zipError}" x-text="zipStatus"></span>
+      </div>
+
+      <p class="note">
+        3ファイルは同じ階層に置いてください。index.html が style.css と script.js を同階層から読み込みます。<br>
+        画像は入力したパスのまま出力されます。実ファイルは別途配置してください。
+      </p>
+    </section>
+
+    <div class="footbar">
+      <button class="btn" type="button" @click="goto(3)">← 確認に戻る</button>
+      <button class="btn btn--danger" type="button" @click="resetAll()">最初からやり直す</button>
+    </div>
+  </div>
+
+  <p class="autosave" x-text="storageNote"></p>
+</div>
+
+<script>
+/* =========================================================
+   セクション定義
+   ========================================================= */
+const DEFS = {
+  mainVisual:      { label:'メインビジュアル', group:'basic',  desc:'ページ上部に大きく置く画像または動画とキャッチコピー' },
+  text:            { label:'テキスト',         group:'basic',  desc:'見出しと本文だけのシンプルなセクション' },
+  image:           { label:'画像',             group:'basic',  desc:'画像1点とキャプション' },
+  button:          { label:'ボタン',           group:'basic',  desc:'CTAなどのリンクボタン単体' },
+  cardGrid:        { label:'カードグリッド',   group:'layout', desc:'2〜4列でカードを均等に並べる' },
+  accordion:       { label:'アコーディオン',   group:'layout', desc:'クリックで開閉する項目リスト' },
+  tabs:            { label:'タブ切り替え',     group:'layout', desc:'タブで表示内容を切り替える' },
+  carousel:        { label:'カルーセル',       group:'layout', desc:'左右に切り替わるスライダー' },
+  comparisonTable: { label:'比較表',           group:'layout', desc:'テーブル形式で複数の対象を並べて比較' }
+};
+
+const LAYOUT_ORDER = ['cardGrid','accordion','tabs','carousel','comparisonTable'];
+const BASIC_ORDER  = ['mainVisual','text','image','button'];
+
+function defaultData(type){
+  switch(type){
+    case 'mainVisual':
+      return { mediaType:'image', src:'', alt:'', catch:'', sub:'', buttonLabel:'', buttonUrl:'' };
+    case 'text':
+      return { heading:'', body:'' };
+    case 'image':
+      return { heading:'', src:'', alt:'', caption:'' };
+    case 'button':
+      return { label:'', url:'', align:'center' };
+    case 'cardGrid':
+      return { heading:'', columns:'3', cards:[ blankCard(), blankCard(), blankCard() ] };
+    case 'accordion':
+      return { heading:'', items:[ {title:'',body:''}, {title:'',body:''}, {title:'',body:''} ] };
+    case 'tabs':
+      return { heading:'', items:[ {label:'',body:''}, {label:'',body:''} ] };
+    case 'carousel':
+      return { heading:'', autoplay:false, interval:'5000',
+               slides:[ {src:'',alt:'',caption:''}, {src:'',alt:'',caption:''}, {src:'',alt:'',caption:''} ] };
+    case 'comparisonTable':
+      return { heading:'', cornerLabel:'項目', headers:['',''],
+               rows:[ {label:'',values:['','']}, {label:'',values:['','']}, {label:'',values:['','']} ] };
+    default:
+      return {};
+  }
+}
+function blankCard(){ return { src:'', alt:'', title:'', body:'', buttonLabel:'', buttonUrl:'' }; }
+
+/* =========================================================
+   生成ユーティリティ
+   ========================================================= */
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function has(s){ return String(s == null ? '' : s).trim() !== ''; }
+function ind(str, n){
+  const pad = ' '.repeat(n);
+  return String(str).split('\n').map(l => l === '' ? '' : pad + l).join('\n');
+}
+function paragraphs(body, cls){
+  const c = cls ? ' class="' + cls + '"' : '';
+  return String(body).split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+    .map(p => '<p' + c + '>' + esc(p).replace(/\n/g,'<br>') + '</p>').join('\n');
+}
+
+/* ---- セクションごとのHTML生成 ---- */
+const HTMLGEN = {
+  mainVisual(d, id){
+    const parts = [];
+    if (has(d.src)) {
+      parts.push('<div class="lp-mv__media">');
+      if (d.mediaType === 'video') {
+        parts.push('  <video src="' + esc(d.src) + '" autoplay muted loop playsinline></video>');
+      } else {
+        parts.push('  <img src="' + esc(d.src) + '" alt="' + esc(d.alt) + '">');
+      }
+      parts.push('</div>');
+    }
+    const body = [];
+    if (has(d.catch)) body.push('<h1 class="lp-mv__catch">' + esc(d.catch) + '</h1>');
+    if (has(d.sub))   body.push(paragraphs(d.sub, 'lp-mv__sub'));
+    if (has(d.buttonLabel)) body.push('<a class="lp-btn" href="' + esc(has(d.buttonUrl) ? d.buttonUrl : '#') + '">' + esc(d.buttonLabel) + '</a>');
+    if (body.length) {
+      parts.push('<div class="lp-mv__body">');
+      parts.push(ind(body.join('\n'), 2));
+      parts.push('</div>');
+    }
+    return wrap('lp-mv', id, parts.join('\n'));
+  },
+  text(d, id){
+    const parts = [];
+    if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
+    if (has(d.body))    parts.push('<div class="lp-text__body">\n' + ind(paragraphs(d.body), 2) + '\n</div>');
+    return wrap('lp-text', id, parts.join('\n'));
+  },
+  image(d, id){
+    const parts = [];
+    if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
+    if (has(d.src)) {
+      const fig = ['<figure class="lp-image__figure">'];
+      fig.push('  <img src="' + esc(d.src) + '" alt="' + esc(d.alt) + '">');
+      if (has(d.caption)) fig.push('  <figcaption class="lp-image__caption">' + esc(d.caption) + '</figcaption>');
+      fig.push('</figure>');
+      parts.push(fig.join('\n'));
+    }
+    return wrap('lp-image', id, parts.join('\n'));
+  },
+  button(d, id){
+    if (!has(d.label)) return wrap('lp-buttonarea', id, '', ' data-align="' + esc(d.align) + '"');
+    const a = '<a class="lp-btn" href="' + esc(has(d.url) ? d.url : '#') + '">' + esc(d.label) + '</a>';
+    return wrap('lp-buttonarea', id, a, ' data-align="' + esc(d.align) + '"');
+  },
+  cardGrid(d, id){
+    const parts = [];
+    if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
+    const items = d.cards.map(c => {
+      const inner = [];
+      if (has(c.src))   inner.push('<img class="lp-card__image" src="' + esc(c.src) + '" alt="' + esc(c.alt) + '">');
+      if (has(c.title)) inner.push('<h3 class="lp-card__title">' + esc(c.title) + '</h3>');
+      if (has(c.body))  inner.push(paragraphs(c.body, 'lp-card__body'));
+      if (has(c.buttonLabel)) inner.push('<a class="lp-btn lp-btn--sm" href="' + esc(has(c.buttonUrl) ? c.buttonUrl : '#') + '">' + esc(c.buttonLabel) + '</a>');
+      if (!inner.length) return '  <li class="lp-card"></li>';
+      return '  <li class="lp-card">\n' + ind(inner.join('\n'), 4) + '\n  </li>';
+    }).join('\n');
+    parts.push('<ul class="lp-cards__grid" data-columns="' + esc(d.columns) + '">\n' + items + '\n</ul>');
+    return wrap('lp-cards', id, parts.join('\n'));
+  },
+  accordion(d, id){
+    const parts = [];
+    if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
+    const items = d.items.map((it, i) => {
+      const pid = id + '-panel-' + (i + 1);
+      const bid = id + '-trigger-' + (i + 1);
+      const open = '    <div class="lp-accordion__panel" id="' + pid + '" role="region" aria-labelledby="' + bid + '" hidden>';
+      const inner = has(it.body) ? ind(paragraphs(it.body), 6) : '';
+      return [
+        '  <div class="lp-accordion__item">',
+        '    <h3 class="lp-accordion__head">',
+        '      <button class="lp-accordion__trigger" type="button" id="' + bid + '" aria-expanded="false" aria-controls="' + pid + '">',
+        '        <span class="lp-accordion__label">' + esc(it.title) + '</span>',
+        '        <span class="lp-accordion__icon" aria-hidden="true"></span>',
+        '      </button>',
+        '    </h3>',
+        inner ? open + '\n' + inner + '\n    </div>' : open + '</div>',
+        '  </div>'
+      ].join('\n');
+    }).join('\n');
+    parts.push('<div class="lp-accordion__list">\n' + items + '\n</div>');
+    return wrap('lp-accordion', id, parts.join('\n'));
+  },
+  tabs(d, id){
+    const parts = [];
+    if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
+    const tabs = d.items.map((it, i) => {
+      const tid = id + '-tab-' + (i + 1);
+      const pid = id + '-tabpanel-' + (i + 1);
+      return '  <button class="lp-tabs__tab" type="button" role="tab" id="' + tid + '" aria-controls="' + pid + '" aria-selected="' + (i === 0) + '" tabindex="' + (i === 0 ? '0' : '-1') + '">' + esc(it.label) + '</button>';
+    }).join('\n');
+    parts.push('<div class="lp-tabs__list" role="tablist">\n' + tabs + '\n</div>');
+    d.items.forEach((it, i) => {
+      const tid = id + '-tab-' + (i + 1);
+      const pid = id + '-tabpanel-' + (i + 1);
+      const open = '<div class="lp-tabs__panel" id="' + pid + '" role="tabpanel" aria-labelledby="' + tid + '"' + (i === 0 ? '' : ' hidden') + '>';
+      const inner = has(it.body) ? ind(paragraphs(it.body), 2) : '';
+      parts.push(inner ? open + '\n' + inner + '\n</div>' : open + '</div>');
+    });
+    return wrap('lp-tabs', id, parts.join('\n'));
+  },
+  carousel(d, id){
+    const parts = [];
+    if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
+    const slides = d.slides.map(s => {
+      const inner = [];
+      if (has(s.src)) inner.push('<img src="' + esc(s.src) + '" alt="' + esc(s.alt) + '">');
+      if (has(s.caption)) inner.push('<p class="lp-carousel__caption">' + esc(s.caption) + '</p>');
+      if (!inner.length) return '    <li class="lp-carousel__slide"></li>';
+      return '    <li class="lp-carousel__slide">\n' + ind(inner.join('\n'), 6) + '\n    </li>';
+    }).join('\n');
+    const dots = d.slides.map((s, i) =>
+      '  <button class="lp-carousel__dot" type="button" data-index="' + i + '" aria-label="' + (i + 1) + '枚目のスライドを表示"' + (i === 0 ? ' aria-current="true"' : '') + '></button>'
+    ).join('\n');
+    parts.push([
+      '<div class="lp-carousel__viewport">',
+      '  <ul class="lp-carousel__track">',
+      slides,
+      '  </ul>',
+      '</div>'
+    ].join('\n'));
+    parts.push('<button class="lp-carousel__nav lp-carousel__nav--prev" type="button" aria-label="前のスライド">&#8249;</button>');
+    parts.push('<button class="lp-carousel__nav lp-carousel__nav--next" type="button" aria-label="次のスライド">&#8250;</button>');
+    parts.push('<div class="lp-carousel__dots">\n' + dots + '\n</div>');
+    const attr = ' data-autoplay="' + (d.autoplay ? 'true' : 'false') + '" data-interval="' + esc(String(d.interval || 5000)) + '"';
+    return wrap('lp-carousel', id, parts.join('\n'), attr);
+  },
+  comparisonTable(d, id){
+    const parts = [];
+    if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
+    const ths = d.headers.map(h => '<th scope="col">' + esc(h) + '</th>').join('');
+    const rows = d.rows.map(r => {
+      const tds = d.headers.map((h, i) => '<td>' + esc(r.values[i] || '') + '</td>').join('');
+      return '      <tr><th scope="row">' + esc(r.label) + '</th>' + tds + '</tr>';
+    }).join('\n');
+    parts.push([
+      '<div class="lp-compare__scroll">',
+      '  <table class="lp-compare__table">',
+      '    <thead>',
+      '      <tr><th scope="col">' + esc(has(d.cornerLabel) ? d.cornerLabel : '項目') + '</th>' + ths + '</tr>',
+      '    </thead>',
+      '    <tbody>',
+      rows,
+      '    </tbody>',
+      '  </table>',
+      '</div>'
+    ].join('\n'));
+    return wrap('lp-compare', id, parts.join('\n'));
+  }
+};
+
+function wrap(cls, id, inner, extraAttr){
+  const attr = extraAttr || '';
+  if (!inner || !inner.trim()) return '<section class="lp-section ' + cls + '" id="' + id + '"' + attr + '></section>';
+  return '<section class="lp-section ' + cls + '" id="' + id + '"' + attr + '>\n' + ind(inner, 2) + '\n</section>';
+}
+
+/* ---- セクションごとのCSS ---- */
+const CSS_BASE = `/* ---------- base ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #1c2430;
+  background: #ffffff;
+}
+
+img,
+video { max-width: 100%; height: auto; display: block; }
+
+[hidden] { display: none !important; }
+
+.lp-section {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 64px 20px;
+}
+
+.lp-heading {
+  font-size: 28px;
+  line-height: 1.4;
+  margin: 0 0 28px;
+  text-align: center;
+}
+
+.lp-btn {
+  display: inline-block;
+  padding: 14px 32px;
+  border-radius: 4px;
+  background: #1c56d6;
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background .2s;
+}
+
+.lp-btn:hover { background: #1442ab; }
+
+.lp-btn:focus-visible {
+  outline: 3px solid #1c56d6;
+  outline-offset: 2px;
+}
+
+.lp-btn--sm { padding: 9px 20px; font-size: 14px; }
+
+@media (max-width: 768px) {
+  .lp-section { padding: 44px 16px; }
+  .lp-heading { font-size: 22px; margin-bottom: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+`;
+
+const CSS_PARTS = {
+  mainVisual: `/* ---------- メインビジュアル ---------- */
+.lp-mv { max-width: none; padding: 0; position: relative; }
+.lp-mv__media img,
+.lp-mv__media video { width: 100%; object-fit: cover; }
+.lp-mv__body { max-width: 1080px; margin: 0 auto; padding: 40px 20px 56px; text-align: center; }
+.lp-mv__catch { font-size: 36px; line-height: 1.35; margin: 0 0 16px; }
+.lp-mv__sub { font-size: 17px; margin: 0 0 28px; }
+@media (max-width: 768px) {
+  .lp-mv__body { padding: 28px 16px 40px; }
+  .lp-mv__catch { font-size: 25px; }
+  .lp-mv__sub { font-size: 15px; }
+}
+`,
+  text: `/* ---------- テキスト ---------- */
+.lp-text__body { max-width: 760px; margin: 0 auto; }
+.lp-text__body p { margin: 0 0 1.4em; }
+.lp-text__body p:last-child { margin-bottom: 0; }
+`,
+  image: `/* ---------- 画像 ---------- */
+.lp-image__figure { margin: 0; max-width: 880px; margin-inline: auto; }
+.lp-image__caption { margin-top: 10px; font-size: 14px; color: #5b6675; text-align: center; }
+`,
+  button: `/* ---------- ボタン ---------- */
+.lp-buttonarea { text-align: center; }
+.lp-buttonarea[data-align="left"] { text-align: left; }
+.lp-buttonarea[data-align="right"] { text-align: right; }
+`,
+  cardGrid: `/* ---------- カードグリッド ---------- */
+.lp-cards__grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 24px; }
+.lp-cards__grid[data-columns="2"] { grid-template-columns: repeat(2, 1fr); }
+.lp-cards__grid[data-columns="3"] { grid-template-columns: repeat(3, 1fr); }
+.lp-cards__grid[data-columns="4"] { grid-template-columns: repeat(4, 1fr); }
+.lp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid #dfe4ec;
+  border-radius: 6px;
+  background: #ffffff;
+}
+.lp-card__image { width: 100%; border-radius: 4px; }
+.lp-card__title { font-size: 18px; margin: 0; }
+.lp-card__body { margin: 0; font-size: 15px; }
+.lp-card .lp-btn { align-self: flex-start; margin-top: auto; }
+@media (max-width: 900px) {
+  .lp-cards__grid[data-columns="3"],
+  .lp-cards__grid[data-columns="4"] { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .lp-cards__grid[data-columns="2"],
+  .lp-cards__grid[data-columns="3"],
+  .lp-cards__grid[data-columns="4"] { grid-template-columns: 1fr; }
+}
+`,
+  accordion: `/* ---------- アコーディオン ---------- */
+.lp-accordion__list { max-width: 800px; margin: 0 auto; border-top: 1px solid #dfe4ec; }
+.lp-accordion__item { border-bottom: 1px solid #dfe4ec; }
+.lp-accordion__head { margin: 0; font-size: inherit; font-weight: inherit; }
+.lp-accordion__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 4px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.lp-accordion__trigger:focus-visible { outline: 3px solid #1c56d6; outline-offset: -3px; }
+.lp-accordion__icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid #5b6675;
+  border-bottom: 2px solid #5b6675;
+  transform: rotate(45deg);
+  transition: transform .2s;
+}
+.lp-accordion__trigger[aria-expanded="true"] .lp-accordion__icon { transform: rotate(-135deg); }
+.lp-accordion__panel { padding: 0 4px 20px; }
+.lp-accordion__panel p { margin: 0 0 1em; }
+.lp-accordion__panel p:last-child { margin-bottom: 0; }
+`,
+  tabs: `/* ---------- タブ切り替え ---------- */
+.lp-tabs__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 880px;
+  margin: 0 auto;
+  border-bottom: 1px solid #dfe4ec;
+}
+.lp-tabs__tab {
+  padding: 12px 22px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: #5b6675;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+.lp-tabs__tab[aria-selected="true"] { color: #1c56d6; font-weight: 700; border-bottom-color: #1c56d6; }
+.lp-tabs__tab:focus-visible { outline: 3px solid #1c56d6; outline-offset: -3px; }
+.lp-tabs__panel { max-width: 880px; margin: 0 auto; padding: 26px 0 0; }
+.lp-tabs__panel p { margin: 0 0 1em; }
+.lp-tabs__panel p:last-child { margin-bottom: 0; }
+`,
+  carousel: `/* ---------- カルーセル ---------- */
+.lp-carousel { position: relative; }
+.lp-carousel__viewport { overflow: hidden; max-width: 880px; margin: 0 auto; }
+.lp-carousel__track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  transition: transform .4s ease;
+}
+.lp-carousel__slide { flex: 0 0 100%; }
+.lp-carousel__caption { margin: 10px 0 0; font-size: 14px; color: #5b6675; text-align: center; }
+.lp-carousel__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border: 1px solid #dfe4ec;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .9);
+  font-size: 22px;
+  line-height: 1;
+  color: #1c2430;
+  cursor: pointer;
+}
+.lp-carousel__nav:focus-visible { outline: 3px solid #1c56d6; outline-offset: 2px; }
+.lp-carousel__nav--prev { left: 12px; }
+.lp-carousel__nav--next { right: 12px; }
+.lp-carousel__dots { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
+.lp-carousel__dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #c8d0dc;
+  cursor: pointer;
+}
+.lp-carousel__dot[aria-current="true"] { background: #1c56d6; }
+.lp-carousel__dot:focus-visible { outline: 3px solid #1c56d6; outline-offset: 2px; }
+`,
+  comparisonTable: `/* ---------- 比較表 ---------- */
+.lp-compare__scroll { overflow-x: auto; }
+.lp-compare__table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.lp-compare__table th,
+.lp-compare__table td {
+  border: 1px solid #dfe4ec;
+  padding: 13px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+.lp-compare__table thead th { background: #f2f5fa; white-space: nowrap; }
+.lp-compare__table tbody th { background: #fafbfd; font-weight: 700; white-space: nowrap; }
+`
+};
+
+/* ---- セクションごとのJS ---- */
+const JS_PARTS = {
+  accordion: `  /* アコーディオン：開閉 */
+  document.querySelectorAll('.lp-accordion__trigger').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var panel = document.getElementById(trigger.getAttribute('aria-controls'));
+      if (!panel) return;
+      var expanded = trigger.getAttribute('aria-expanded') === 'true';
+      trigger.setAttribute('aria-expanded', String(!expanded));
+      panel.hidden = expanded;
+    });
+  });`,
+  tabs: `  /* タブ切り替え：クリックと左右キー操作 */
+  document.querySelectorAll('.lp-tabs').forEach(function (root) {
+    var tabs = Array.prototype.slice.call(root.querySelectorAll('.lp-tabs__tab'));
+    if (!tabs.length) return;
+
+    function activate(index) {
+      tabs.forEach(function (tab, i) {
+        var selected = i === index;
+        var panel = document.getElementById(tab.getAttribute('aria-controls'));
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        if (panel) panel.hidden = !selected;
+      });
+      tabs[index].focus();
+    }
+
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () { activate(i); });
+      tab.addEventListener('keydown', function (event) {
+        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+        event.preventDefault();
+        var next = event.key === 'ArrowRight' ? i + 1 : i - 1;
+        activate((next + tabs.length) % tabs.length);
+      });
+    });
+  });`,
+  carousel: `  /* カルーセル：前後移動・ドット・自動再生 */
+  document.querySelectorAll('.lp-carousel').forEach(function (root) {
+    var track = root.querySelector('.lp-carousel__track');
+    var slides = root.querySelectorAll('.lp-carousel__slide');
+    var dots = Array.prototype.slice.call(root.querySelectorAll('.lp-carousel__dot'));
+    if (!track || slides.length === 0) return;
+
+    var current = 0;
+    var timer = null;
+    var autoplay = root.dataset.autoplay === 'true';
+    var interval = parseInt(root.dataset.interval, 10) || 5000;
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function show(index) {
+      current = (index + slides.length) % slides.length;
+      track.style.transform = 'translateX(-' + (current * 100) + '%)';
+      dots.forEach(function (dot, i) {
+        if (i === current) { dot.setAttribute('aria-current', 'true'); }
+        else { dot.removeAttribute('aria-current'); }
+      });
+    }
+
+    function start() {
+      if (!autoplay || reduceMotion || slides.length < 2) return;
+      stop();
+      timer = window.setInterval(function () { show(current + 1); }, interval);
+    }
+
+    function stop() {
+      if (timer !== null) { window.clearInterval(timer); timer = null; }
+    }
+
+    var prev = root.querySelector('.lp-carousel__nav--prev');
+    var next = root.querySelector('.lp-carousel__nav--next');
+    if (prev) prev.addEventListener('click', function () { show(current - 1); start(); });
+    if (next) next.addEventListener('click', function () { show(current + 1); start(); });
+    dots.forEach(function (dot, i) {
+      dot.addEventListener('click', function () { show(i); start(); });
+    });
+
+    root.addEventListener('mouseenter', stop);
+    root.addEventListener('mouseleave', start);
+    root.addEventListener('focusin', stop);
+    root.addEventListener('focusout', start);
+
+    show(0);
+    start();
+  });`
+};
+
+/* =========================================================
+   Alpine コンポーネント
+   ========================================================= */
+const STORAGE_KEY = 'lp-block-builder-session';
+
+document.addEventListener('alpine:init', function () {
+  Alpine.data('builder', function () {
+    return {
+      steps: [
+        { no:1, label:'ページ構成を決める' },
+        { no:2, label:'各セクションの中身を入力する' },
+        { no:3, label:'設定内容の確認' },
+        { no:4, label:'出力' }
+      ],
+      step: 1,
+      page: { title:'', lang:'ja' },
+      sections: [],
+      nextId: 1,
+      activeFile: 'index.html',
+      copied: false,
+      zipStatus: '',
+      zipError: false,
+      storageNote: '',
+
+      init() {
+        this.restore();
+        this.$watch('step',     () => this.persist());
+        this.$watch('page',     () => this.persist());
+        this.$watch('sections', () => this.persist());
+      },
+
+      /* ---- 定義まわり ---- */
+      defsByGroup(group) {
+        const order = group === 'layout' ? LAYOUT_ORDER : BASIC_ORDER;
+        return order.map(type => Object.assign({ type }, DEFS[type]));
+      },
+      defOf(sec) { return DEFS[sec.type] || { label: sec.type, group: 'basic', desc: '' }; },
+
+      /* ---- 構成の編集 ---- */
+      addSection(type) {
+        this.sections.push({ id: this.nextId++, type, data: defaultData(type) });
+      },
+      removeSection(i) { this.sections.splice(i, 1); },
+      move(i, dir) {
+        const j = i + dir;
+        if (j < 0 || j >= this.sections.length) return;
+        const moved = this.sections.splice(i, 1)[0];
+        this.sections.splice(j, 0, moved);
+      },
+      newCard() { return blankCard(); },
+      addColumn(sec) {
+        sec.data.headers.push('');
+        sec.data.rows.forEach(r => r.values.push(''));
+      },
+      removeColumn(sec, index) {
+        if (sec.data.headers.length <= 1) return;
+        sec.data.headers.splice(index, 1);
+        sec.data.rows.forEach(r => r.values.splice(index, 1));
+      },
+      addRow(sec) {
+        sec.data.rows.push({ label:'', values: sec.data.headers.map(() => '') });
+      },
+
+      /* ---- ステップ移動 ---- */
+      canJump(no) {
+        if (no === 1) return true;
+        return this.sections.length > 0;
+      },
+      goto(no) {
+        if (!this.canJump(no)) return;
+        this.step = no;
+        this.copied = false;
+        this.zipStatus = '';
+        this.zipError = false;
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      },
+      resetAll() {
+        if (!window.confirm('入力内容をすべて消して最初からやり直します。よろしいですか？')) return;
+        this.page = { title:'', lang:'ja' };
+        this.sections = [];
+        this.nextId = 1;
+        this.step = 1;
+        this.copied = false;
+        this.zipStatus = '';
+        this.zipError = false;
+        try { window.sessionStorage.removeItem(STORAGE_KEY); } catch (e) { /* 保存不可の環境では何もしない */ }
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      },
+
+      /* ---- 確認画面 ---- */
+      reviewOf(sec) {
+        const d = sec.data;
+        const v = x => (has(x) ? String(x) : '');
+        switch (sec.type) {
+          case 'mainVisual':
+            return [{ group:'', rows: [
+              ['メディア種別', d.mediaType === 'video' ? '動画' : '画像'],
+              ['メディアのURL / パス', v(d.src)],
+              ['代替テキスト', d.mediaType === 'video' ? '（動画のため対象外）' : v(d.alt)],
+              ['キャッチコピー', v(d.catch)],
+              ['サブコピー', v(d.sub)],
+              ['ボタンのラベル', v(d.buttonLabel)],
+              ['ボタンのリンク先', v(d.buttonUrl)]
+            ]}];
+          case 'text':
+            return [{ group:'', rows: [['見出し', v(d.heading)], ['本文', v(d.body)]] }];
+          case 'image':
+            return [{ group:'', rows: [
+              ['見出し', v(d.heading)],
+              ['画像のURL / パス', v(d.src)],
+              ['代替テキスト', v(d.alt)],
+              ['キャプション', v(d.caption)]
+            ]}];
+          case 'button':
+            return [{ group:'', rows: [
+              ['ラベル', v(d.label)],
+              ['リンク先', v(d.url)],
+              ['配置', d.align === 'left' ? '左寄せ' : (d.align === 'right' ? '右寄せ' : '中央')]
+            ]}];
+          case 'cardGrid': {
+            const blocks = [{ group:'', rows: [['見出し', v(d.heading)], ['カラム数', d.columns + '列']] }];
+            d.cards.forEach((c, i) => blocks.push({ group: 'CARD ' + (i + 1), rows: [
+              ['画像のURL / パス', v(c.src)],
+              ['代替テキスト', v(c.alt)],
+              ['カードの見出し', v(c.title)],
+              ['カードの本文', v(c.body)],
+              ['ボタンのラベル', v(c.buttonLabel)],
+              ['ボタンのリンク先', v(c.buttonUrl)]
+            ]}));
+            return blocks;
+          }
+          case 'accordion': {
+            const blocks = [{ group:'', rows: [['見出し', v(d.heading)]] }];
+            d.items.forEach((it, i) => blocks.push({ group: 'ITEM ' + (i + 1), rows: [
+              ['開閉ボタンのテキスト', v(it.title)],
+              ['開いたときの本文', v(it.body)]
+            ]}));
+            return blocks;
+          }
+          case 'tabs': {
+            const blocks = [{ group:'', rows: [['見出し', v(d.heading)]] }];
+            d.items.forEach((it, i) => blocks.push({ group: 'TAB ' + (i + 1), rows: [
+              ['タブのラベル', v(it.label)],
+              ['タブの中身', v(it.body)]
+            ]}));
+            return blocks;
+          }
+          case 'carousel': {
+            const blocks = [{ group:'', rows: [
+              ['見出し', v(d.heading)],
+              ['自動で切り替える', d.autoplay ? 'する' : 'しない'],
+              ['切り替え間隔', d.autoplay ? (d.interval + ' ミリ秒') : '（自動切り替えなし）']
+            ]}];
+            d.slides.forEach((s, i) => blocks.push({ group: 'SLIDE ' + (i + 1), rows: [
+              ['画像のURL / パス', v(s.src)],
+              ['代替テキスト', v(s.alt)],
+              ['キャプション', v(s.caption)]
+            ]}));
+            return blocks;
+          }
+          case 'comparisonTable': {
+            const blocks = [{ group:'', rows: [
+              ['見出し', v(d.heading)],
+              ['左上のセルの見出し', v(d.cornerLabel)],
+              ['列の見出し', d.headers.map((h, i) => (i + 1) + '. ' + (has(h) ? h : '（未入力）')).join('\n')]
+            ]}];
+            d.rows.forEach((r, i) => blocks.push({ group: 'ROW ' + (i + 1), rows:
+              [['行の見出し', v(r.label)]].concat(
+                d.headers.map((h, hi) => [(has(h) ? h : '列 ' + (hi + 1)) + ' の値', v(r.values[hi])])
+              )
+            }));
+            return blocks;
+          }
+          default:
+            return [{ group:'', rows: [] }];
+        }
+      },
+
+      blanks() {
+        const out = [];
+        if (!has(this.page.title)) out.push('ページタイトルが未入力です。');
+        this.sections.forEach((sec, i) => {
+          const label = String(i + 1).padStart(2, '0') + ' ' + this.defOf(sec).label + '：';
+          const d = sec.data;
+          if (sec.type === 'mainVisual') {
+            if (!has(d.src))   out.push(label + 'メディアのURL / パスが未入力です。');
+            if (!has(d.catch)) out.push(label + 'キャッチコピーが未入力です。');
+          }
+          if (sec.type === 'text' && !has(d.body))    out.push(label + '本文が未入力です。');
+          if (sec.type === 'image' && !has(d.src))    out.push(label + '画像のURL / パスが未入力です。');
+          if (sec.type === 'button' && !has(d.label)) out.push(label + 'ラベルが未入力です。');
+          if (sec.type === 'cardGrid') {
+            d.cards.forEach((c, ci) => {
+              if (!has(c.title) && !has(c.body) && !has(c.src)) out.push(label + 'カード ' + (ci + 1) + ' が空です。');
+            });
+          }
+          if (sec.type === 'accordion') {
+            d.items.forEach((it, ii) => {
+              if (!has(it.title)) out.push(label + '項目 ' + (ii + 1) + ' の開閉ボタンのテキストが未入力です。');
+            });
+          }
+          if (sec.type === 'tabs') {
+            d.items.forEach((it, ii) => {
+              if (!has(it.label)) out.push(label + 'タブ ' + (ii + 1) + ' のラベルが未入力です。');
+            });
+          }
+          if (sec.type === 'carousel') {
+            d.slides.forEach((s, si) => {
+              if (!has(s.src)) out.push(label + 'スライド ' + (si + 1) + ' の画像が未入力です。');
+            });
+          }
+          if (sec.type === 'comparisonTable') {
+            d.headers.forEach((h, hi) => {
+              if (!has(h)) out.push(label + '列 ' + (hi + 1) + ' の見出しが未入力です。');
+            });
+          }
+        });
+        return out;
+      },
+
+      /* ---- コード生成 ---- */
+      usedTypes() {
+        return this.sections.map(s => s.type).filter((t, i, arr) => arr.indexOf(t) === i);
+      },
+      buildHtml() {
+        const body = this.sections.map((sec, i) => {
+          const id = 'section-' + String(i + 1).padStart(2, '0');
+          const gen = HTMLGEN[sec.type];
+          return gen ? gen(sec.data, id) : '';
+        }).filter(Boolean).join('\n\n');
+
+        const title = has(this.page.title) ? this.page.title : '無題のランディングページ';
+        const needsJs = this.usedTypes().some(t => JS_PARTS[t]);
+
+        const lines = [
+          '<!DOCTYPE html>',
+          '<html lang="' + esc(this.page.lang) + '">',
+          '<head>',
+          '<meta charset="UTF-8">',
+          '<meta name="viewport" content="width=device-width, initial-scale=1">',
+          '<title>' + esc(title) + '</title>',
+          '<link rel="stylesheet" href="style.css">',
+          '</head>',
+          '<body>',
+          '',
+          '<main class="lp">',
+          ind(body, 2),
+          '</main>',
+          ''
+        ];
+        if (needsJs) lines.push('<script src="script.js"><\/script>', '');
+        lines.push('</body>', '</html>', '');
+        return lines.join('\n');
+      },
+      buildCss() {
+        const used = this.usedTypes();
+        const blocks = [CSS_BASE];
+        ['mainVisual','text','image','button','cardGrid','accordion','tabs','carousel','comparisonTable']
+          .forEach(t => { if (used.indexOf(t) !== -1 && CSS_PARTS[t]) blocks.push(CSS_PARTS[t]); });
+        return blocks.join('\n');
+      },
+      buildJs() {
+        const used = this.usedTypes();
+        const blocks = ['accordion','tabs','carousel']
+          .filter(t => used.indexOf(t) !== -1)
+          .map(t => JS_PARTS[t]);
+        if (!blocks.length) {
+          return '/* このページに動きのあるセクションはないため、処理はありません。 */\n';
+        }
+        return [
+          "(function () {",
+          "  'use strict';",
+          '',
+          blocks.join('\n\n'),
+          '})();',
+          ''
+        ].join('\n');
+      },
+      fileList() {
+        const files = [
+          { name:'index.html', code: this.buildHtml() },
+          { name:'style.css',  code: this.buildCss() },
+          { name:'script.js',  code: this.buildJs() }
+        ];
+        return files;
+      },
+      currentCode() {
+        const f = this.fileList().find(x => x.name === this.activeFile);
+        return f ? f.code : '';
+      },
+
+      /* ---- 出力操作 ---- */
+      async copyCurrent() {
+        const text = this.currentCode();
+        try {
+          await navigator.clipboard.writeText(text);
+          this.copied = true;
+          window.setTimeout(() => { this.copied = false; }, 1800);
+        } catch (e) {
+          this.zipError = true;
+          this.zipStatus = 'コピーできませんでした。コードを選択して手動でコピーしてください。';
+        }
+      },
+      saveBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+      downloadCurrent() {
+        const f = this.fileList().find(x => x.name === this.activeFile);
+        if (!f) return;
+        this.saveBlob(new Blob([f.code], { type:'text/plain;charset=utf-8' }), f.name);
+        this.zipError = false;
+        this.zipStatus = f.name + ' を保存しました。';
+      },
+      async downloadZip() {
+        if (typeof window.JSZip === 'undefined') {
+          this.zipError = true;
+          this.zipStatus = 'zipの作成に必要なJSZipを読み込めませんでした。「表示中のファイルを保存」で1つずつ保存してください。';
+          return;
+        }
+        try {
+          this.zipError = false;
+          this.zipStatus = 'zipを作成しています…';
+          const zip = new window.JSZip();
+          this.fileList().forEach(f => zip.file(f.name, f.code));
+          const blob = await zip.generateAsync({ type:'blob' });
+          const base = has(this.page.title)
+            ? this.page.title.trim().replace(/[\\/:*?"<>|\s]+/g, '-').slice(0, 40)
+            : 'lp';
+          this.saveBlob(blob, base + '.zip');
+          this.zipStatus = 'zipをダウンロードしました。';
+        } catch (e) {
+          this.zipError = true;
+          this.zipStatus = 'zipの作成に失敗しました。「表示中のファイルを保存」で1つずつ保存してください。';
+        }
+      },
+
+      /* ---- セッション中の一時保存 ---- */
+      persist() {
+        try {
+          window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+            step: this.step, page: this.page, sections: this.sections, nextId: this.nextId
+          }));
+          this.storageNote = '入力内容はブラウザのタブを開いている間だけ一時保存されます（タブを閉じると消えます）。';
+        } catch (e) {
+          this.storageNote = 'この環境では一時保存が使えません。タブを移動すると入力内容は失われます。';
+        }
+      },
+      restore() {
+        let raw = null;
+        try {
+          raw = window.sessionStorage.getItem(STORAGE_KEY);
+        } catch (e) {
+          this.storageNote = 'この環境では一時保存が使えません。タブを移動すると入力内容は失われます。';
+          return;
+        }
+        this.storageNote = '入力内容はブラウザのタブを開いている間だけ一時保存されます（タブを閉じると消えます）。';
+        if (!raw) return;
+        try {
+          const saved = JSON.parse(raw);
+          if (saved && Array.isArray(saved.sections)) {
+            this.page = Object.assign({ title:'', lang:'ja' }, saved.page || {});
+            this.sections = saved.sections;
+            this.nextId = saved.nextId || (saved.sections.length + 1);
+            this.step = saved.sections.length > 0 ? (saved.step || 1) : 1;
+          }
+        } catch (e) { /* 壊れた保存データは無視して初期状態から始める */ }
+      }
+    };
+  });
+});
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+</body>
+</html>
