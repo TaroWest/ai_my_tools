@@ -76,6 +76,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 .checkline{display:flex;align-items:center;gap:8px;font-size:13px}
 .checkline input{width:auto}
 .checkline label{margin:0;font-weight:400}
+.unit{display:flex;align-items:center;gap:8px}
+.unit__suffix{font-size:13px;color:var(--ink-mute);flex:none}
 
 /* ---- buttons ---- */
 .btn{
@@ -143,6 +145,23 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 .item{border:1px solid var(--line-soft);border-radius:5px;padding:13px;margin-bottom:10px;background:#fbfcfe}
 .item__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .item__label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-mute)}
+
+/* ---- button style picker ---- */
+.stylepick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stylepick__opt{
+  border:1px solid var(--line);border-radius:5px;padding:14px;background:var(--surface);
+  cursor:pointer;text-align:center;font-family:var(--sans);transition:.15s;
+}
+.stylepick__opt:hover{border-color:var(--accent)}
+.stylepick__opt[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.stylepick__opt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.stylepick__name{display:block;font-size:12px;font-weight:700;margin-bottom:10px}
+.swatch{
+  display:block;padding:11px 8px;border-radius:4px;font-size:15px;font-weight:700;
+  line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.swatch--fill{background:#dc0000;border:2px solid #dc0000;color:#fff}
+.swatch--outline{background:#fff;border:2px solid #dc0000;color:#dc0000;border-radius:6px}
 
 /* ---- review ---- */
 .review{border:1px solid var(--line);border-radius:6px;margin-bottom:14px}
@@ -222,7 +241,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
   <div x-show="step === 1">
     <section class="panel">
       <h2 class="panel__head">ページの基本設定</h2>
-      <p class="panel__lead">出力するHTMLの &lt;title&gt; と言語設定です。</p>
+      <p class="panel__lead">出力するHTMLの基本情報と、PC・タブレットで表示したときの最大幅を決めます。</p>
       <div class="grid2">
         <div class="field">
           <label for="pageTitle">ページタイトル</label>
@@ -235,16 +254,23 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
             <option value="en">English（en）</option>
           </select>
         </div>
+        <div class="field">
+          <label for="contentWidth">コンテンツ幅<span class="hint">画面がこれより狭いときは自動で幅いっぱいに広がります</span></label>
+          <div class="unit">
+            <input id="contentWidth" type="number" min="320" max="1920" step="10" x-model="page.contentWidth">
+            <span class="unit__suffix">px</span>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="panel">
       <h2 class="panel__head">セクションを追加する</h2>
-      <p class="panel__lead">レイアウトパターンと基本パーツを選んで、ページの構成を組み立てます。</p>
+      <p class="panel__lead">基本パーツとレイアウトパターンを選んで、ページの構成を組み立てます。</p>
 
-      <p class="subhead">レイアウトパターン</p>
+      <p class="subhead">基本パーツ</p>
       <div class="palette">
-        <template x-for="def in defsByGroup('layout')" :key="def.type">
+        <template x-for="def in defsByGroup('basic')" :key="def.type">
           <button class="palette__btn" type="button" @click="addSection(def.type)">
             <span class="palette__name" x-text="def.label"></span>
             <span class="palette__desc" x-text="def.desc"></span>
@@ -252,9 +278,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
         </template>
       </div>
 
-      <p class="subhead group-gap">基本パーツ</p>
+      <p class="subhead group-gap">レイアウトパターン</p>
       <div class="palette">
-        <template x-for="def in defsByGroup('basic')" :key="def.type">
+        <template x-for="def in defsByGroup('layout')" :key="def.type">
           <button class="palette__btn" type="button" @click="addSection(def.type)">
             <span class="palette__name" x-text="def.label"></span>
             <span class="palette__desc" x-text="def.desc"></span>
@@ -299,7 +325,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
   <div x-show="step === 2">
     <section class="panel">
       <h2 class="panel__head">各セクションの中身を入力する</h2>
-      <p class="panel__lead">空欄のまま進めることもできます。空欄の項目は、出力されるコードから省略されます。</p>
+      <p class="panel__lead">空欄のまま進めることもできます。空欄の項目は、出力されるコードから省略されます。画像のリンク先はすべて任意です。</p>
     </section>
 
     <template x-for="(sec, i) in sections" :key="sec.id">
@@ -331,22 +357,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
                 <input type="text" x-model="sec.data.alt">
               </div>
               <div class="field">
-                <label>キャッチコピー</label>
-                <input type="text" x-model="sec.data.catch">
-              </div>
-              <div class="field">
-                <label>サブコピー</label>
-                <textarea x-model="sec.data.sub"></textarea>
-              </div>
-              <div class="grid2">
-                <div class="field">
-                  <label>ボタンのラベル<span class="hint">空欄ならボタンなし</span></label>
-                  <input type="text" x-model="sec.data.buttonLabel">
-                </div>
-                <div class="field">
-                  <label>ボタンのリンク先</label>
-                  <input type="text" x-model="sec.data.buttonUrl" placeholder="#contact">
-                </div>
+                <label>リンク先<span class="hint">任意。入力するとメディア全体がリンクになります</span></label>
+                <input type="text" x-model="sec.data.linkUrl" placeholder="#contact">
               </div>
             </div>
           </template>
@@ -354,9 +366,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           <!-- テキスト -->
           <template x-if="sec.type === 'text'">
             <div>
-              <div class="field">
-                <label>見出し</label>
-                <input type="text" x-model="sec.data.heading">
+              <div class="grid2">
+                <div class="field">
+                  <label>見出し</label>
+                  <input type="text" x-model="sec.data.heading">
+                </div>
+                <div class="field">
+                  <label>テキストの配置</label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左揃え</option>
+                    <option value="center">中央揃え</option>
+                  </select>
+                </div>
               </div>
               <div class="field">
                 <label>本文<span class="hint">空行で区切ると段落が分かれます</span></label>
@@ -368,11 +389,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           <!-- 画像 -->
           <template x-if="sec.type === 'image'">
             <div>
-              <div class="field">
-                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
-                <input type="text" x-model="sec.data.heading">
-              </div>
               <div class="grid2">
+                <div class="field">
+                  <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                  <input type="text" x-model="sec.data.heading">
+                </div>
+                <div class="field">
+                  <label>テキストの配置<span class="hint">見出しとキャプションに適用</span></label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左揃え</option>
+                    <option value="center">中央揃え</option>
+                  </select>
+                </div>
                 <div class="field">
                   <label>画像のURL / パス</label>
                   <input type="text" x-model="sec.data.src" placeholder="images/photo.jpg">
@@ -383,6 +411,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
                 </div>
               </div>
               <div class="field">
+                <label>画像のリンク先<span class="hint">任意</span></label>
+                <input type="text" x-model="sec.data.linkUrl">
+              </div>
+              <div class="field">
                 <label>キャプション<span class="hint">空欄ならキャプションなし</span></label>
                 <input type="text" x-model="sec.data.caption">
               </div>
@@ -391,22 +423,37 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 
           <!-- ボタン -->
           <template x-if="sec.type === 'button'">
-            <div class="grid2">
-              <div class="field">
-                <label>ラベル</label>
-                <input type="text" x-model="sec.data.label" placeholder="お問い合わせはこちら">
+            <div>
+              <div class="grid2">
+                <div class="field">
+                  <label>ラベル</label>
+                  <input type="text" x-model="sec.data.label" placeholder="今すぐチェック！">
+                </div>
+                <div class="field">
+                  <label>リンク先</label>
+                  <input type="text" x-model="sec.data.url" placeholder="#contact">
+                </div>
+                <div class="field">
+                  <label>配置</label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左寄せ</option>
+                    <option value="center">中央</option>
+                    <option value="right">右寄せ</option>
+                  </select>
+                </div>
               </div>
               <div class="field">
-                <label>リンク先</label>
-                <input type="text" x-model="sec.data.url" placeholder="#contact">
-              </div>
-              <div class="field">
-                <label>配置</label>
-                <select x-model="sec.data.align">
-                  <option value="left">左寄せ</option>
-                  <option value="center">中央</option>
-                  <option value="right">右寄せ</option>
-                </select>
+                <label>デザイン<span class="hint">ベースカラー #dc0000 / 文字サイズ 24px</span></label>
+                <div class="stylepick">
+                  <button class="stylepick__opt" type="button" :aria-pressed="sec.data.style === 'fill'" @click="sec.data.style = 'fill'">
+                    <span class="stylepick__name">塗りつぶし</span>
+                    <span class="swatch swatch--fill" x-text="sec.data.label || '今すぐチェック！'"></span>
+                  </button>
+                  <button class="stylepick__opt" type="button" :aria-pressed="sec.data.style === 'outline'" @click="sec.data.style = 'outline'">
+                    <span class="stylepick__name">白抜き（枠線）</span>
+                    <span class="swatch swatch--outline" x-text="sec.data.label || '今すぐチェック！'"></span>
+                  </button>
+                </div>
               </div>
             </div>
           </template>
@@ -427,6 +474,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
                     <option value="4">4列</option>
                   </select>
                 </div>
+                <div class="field">
+                  <label>テキストの配置</label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左揃え</option>
+                    <option value="center">中央揃え</option>
+                  </select>
+                </div>
               </div>
               <template x-for="(card, ci) in sec.data.cards" :key="ci">
                 <div class="item">
@@ -443,6 +497,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
                       <label>代替テキスト</label>
                       <input type="text" x-model="card.alt">
                     </div>
+                  </div>
+                  <div class="field">
+                    <label>画像のリンク先<span class="hint">任意</span></label>
+                    <input type="text" x-model="card.linkUrl">
                   </div>
                   <div class="field">
                     <label>カードの見出し</label>
@@ -471,9 +529,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           <!-- アコーディオン -->
           <template x-if="sec.type === 'accordion'">
             <div>
-              <div class="field">
-                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
-                <input type="text" x-model="sec.data.heading">
+              <div class="grid2">
+                <div class="field">
+                  <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                  <input type="text" x-model="sec.data.heading">
+                </div>
+                <div class="field">
+                  <label>テキストの配置<span class="hint">見出しに適用。項目の中身は左揃え固定</span></label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左揃え</option>
+                    <option value="center">中央揃え</option>
+                  </select>
+                </div>
               </div>
               <template x-for="(item, ii) in sec.data.items" :key="ii">
                 <div class="item">
@@ -498,9 +565,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           <!-- タブ -->
           <template x-if="sec.type === 'tabs'">
             <div>
-              <div class="field">
-                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
-                <input type="text" x-model="sec.data.heading">
+              <div class="grid2">
+                <div class="field">
+                  <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                  <input type="text" x-model="sec.data.heading">
+                </div>
+                <div class="field">
+                  <label>テキストの配置</label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左揃え</option>
+                    <option value="center">中央揃え</option>
+                  </select>
+                </div>
               </div>
               <template x-for="(item, ii) in sec.data.items" :key="ii">
                 <div class="item">
@@ -525,11 +601,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           <!-- カルーセル -->
           <template x-if="sec.type === 'carousel'">
             <div>
-              <div class="field">
-                <label>見出し<span class="hint">空欄なら見出しなし</span></label>
-                <input type="text" x-model="sec.data.heading">
-              </div>
               <div class="grid2">
+                <div class="field">
+                  <label>見出し<span class="hint">空欄なら見出しなし</span></label>
+                  <input type="text" x-model="sec.data.heading">
+                </div>
+                <div class="field">
+                  <label>テキストの配置<span class="hint">見出しとキャプションに適用</span></label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左揃え</option>
+                    <option value="center">中央揃え</option>
+                  </select>
+                </div>
                 <div class="field">
                   <div class="checkline">
                     <input type="checkbox" :id="'auto-' + sec.id" x-model="sec.data.autoplay">
@@ -558,12 +641,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
                     </div>
                   </div>
                   <div class="field">
+                    <label>画像のリンク先<span class="hint">任意</span></label>
+                    <input type="text" x-model="slide.linkUrl">
+                  </div>
+                  <div class="field">
                     <label>キャプション<span class="hint">空欄ならキャプションなし</span></label>
                     <input type="text" x-model="slide.caption">
                   </div>
                 </div>
               </template>
-              <button class="btn btn--ghost btn--sm" type="button" @click="sec.data.slides.push({src:'',alt:'',caption:''})">＋ スライドを追加</button>
+              <button class="btn btn--ghost btn--sm" type="button" @click="sec.data.slides.push(newSlide())">＋ スライドを追加</button>
             </div>
           </template>
 
@@ -578,6 +665,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
                 <div class="field">
                   <label>左上のセルの見出し</label>
                   <input type="text" x-model="sec.data.cornerLabel" placeholder="項目">
+                </div>
+                <div class="field">
+                  <label>テキストの配置</label>
+                  <select x-model="sec.data.align">
+                    <option value="left">左揃え</option>
+                    <option value="center">中央揃え</option>
+                  </select>
                 </div>
               </div>
 
@@ -657,6 +751,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           <tr>
             <th scope="row">言語（lang属性）</th>
             <td x-text="page.lang"></td>
+          </tr>
+          <tr>
+            <th scope="row">コンテンツ幅</th>
+            <td x-text="contentWidthPx() + 'px'"></td>
           </tr>
           <tr>
             <th scope="row">セクション数</th>
@@ -742,7 +840,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
    セクション定義
    ========================================================= */
 const DEFS = {
-  mainVisual:      { label:'メインビジュアル', group:'basic',  desc:'ページ上部に大きく置く画像または動画とキャッチコピー' },
+  mainVisual:      { label:'メインビジュアル', group:'basic',  desc:'ページ上部に大きく置く画像または動画' },
   text:            { label:'テキスト',         group:'basic',  desc:'見出しと本文だけのシンプルなセクション' },
   image:           { label:'画像',             group:'basic',  desc:'画像1点とキャプション' },
   button:          { label:'ボタン',           group:'basic',  desc:'CTAなどのリンクボタン単体' },
@@ -753,36 +851,42 @@ const DEFS = {
   comparisonTable: { label:'比較表',           group:'layout', desc:'テーブル形式で複数の対象を並べて比較' }
 };
 
-const LAYOUT_ORDER = ['cardGrid','accordion','tabs','carousel','comparisonTable'];
+/* パレットの表示順：基本パーツ → レイアウトパターン */
 const BASIC_ORDER  = ['mainVisual','text','image','button'];
+const LAYOUT_ORDER = ['cardGrid','accordion','tabs','carousel','comparisonTable'];
+
+const BUTTON_BASE_COLOR = '#dc0000';
+const BUTTON_FONT_SIZE = 24;
+const DEFAULT_CONTENT_WIDTH = 960;
 
 function defaultData(type){
   switch(type){
     case 'mainVisual':
-      return { mediaType:'image', src:'', alt:'', catch:'', sub:'', buttonLabel:'', buttonUrl:'' };
+      return { mediaType:'image', src:'', alt:'', linkUrl:'' };
     case 'text':
-      return { heading:'', body:'' };
+      return { heading:'', body:'', align:'left' };
     case 'image':
-      return { heading:'', src:'', alt:'', caption:'' };
+      return { heading:'', src:'', alt:'', linkUrl:'', caption:'', align:'center' };
     case 'button':
-      return { label:'', url:'', align:'center' };
+      return { label:'', url:'', align:'center', style:'fill' };
     case 'cardGrid':
-      return { heading:'', columns:'3', cards:[ blankCard(), blankCard(), blankCard() ] };
+      return { heading:'', columns:'3', align:'left', cards:[ blankCard(), blankCard(), blankCard() ] };
     case 'accordion':
-      return { heading:'', items:[ {title:'',body:''}, {title:'',body:''}, {title:'',body:''} ] };
+      return { heading:'', align:'left', items:[ {title:'',body:''}, {title:'',body:''}, {title:'',body:''} ] };
     case 'tabs':
-      return { heading:'', items:[ {label:'',body:''}, {label:'',body:''} ] };
+      return { heading:'', align:'left', items:[ {label:'',body:''}, {label:'',body:''} ] };
     case 'carousel':
-      return { heading:'', autoplay:false, interval:'5000',
-               slides:[ {src:'',alt:'',caption:''}, {src:'',alt:'',caption:''}, {src:'',alt:'',caption:''} ] };
+      return { heading:'', align:'center', autoplay:false, interval:'5000',
+               slides:[ blankSlide(), blankSlide(), blankSlide() ] };
     case 'comparisonTable':
-      return { heading:'', cornerLabel:'項目', headers:['',''],
+      return { heading:'', cornerLabel:'項目', align:'left', headers:['',''],
                rows:[ {label:'',values:['','']}, {label:'',values:['','']}, {label:'',values:['','']} ] };
     default:
       return {};
   }
 }
-function blankCard(){ return { src:'', alt:'', title:'', body:'', buttonLabel:'', buttonUrl:'' }; }
+function blankCard(){ return { src:'', alt:'', linkUrl:'', title:'', body:'', buttonLabel:'', buttonUrl:'' }; }
+function blankSlide(){ return { src:'', alt:'', linkUrl:'', caption:'' }; }
 
 /* =========================================================
    生成ユーティリティ
@@ -802,68 +906,70 @@ function paragraphs(body, cls){
   return String(body).split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
     .map(p => '<p' + c + '>' + esc(p).replace(/\n/g,'<br>') + '</p>').join('\n');
 }
+/* リンク先が入力されていれば、画像などをアンカーで包む */
+function linked(tag, url){
+  if (!has(url)) return tag;
+  return '<a class="lp-medialink" href="' + esc(url) + '">' + tag + '</a>';
+}
+/* テキスト配置の属性（left / center のみ許可。既定は left） */
+function alignAttr(align){
+  return ' data-align="' + (align === 'center' ? 'center' : 'left') + '"';
+}
 
 /* ---- セクションごとのHTML生成 ---- */
 const HTMLGEN = {
   mainVisual(d, id){
-    const parts = [];
-    if (has(d.src)) {
-      parts.push('<div class="lp-mv__media">');
-      if (d.mediaType === 'video') {
-        parts.push('  <video src="' + esc(d.src) + '" autoplay muted loop playsinline></video>');
-      } else {
-        parts.push('  <img src="' + esc(d.src) + '" alt="' + esc(d.alt) + '">');
-      }
-      parts.push('</div>');
-    }
-    const body = [];
-    if (has(d.catch)) body.push('<h1 class="lp-mv__catch">' + esc(d.catch) + '</h1>');
-    if (has(d.sub))   body.push(paragraphs(d.sub, 'lp-mv__sub'));
-    if (has(d.buttonLabel)) body.push('<a class="lp-btn" href="' + esc(has(d.buttonUrl) ? d.buttonUrl : '#') + '">' + esc(d.buttonLabel) + '</a>');
-    if (body.length) {
-      parts.push('<div class="lp-mv__body">');
-      parts.push(ind(body.join('\n'), 2));
-      parts.push('</div>');
-    }
-    return wrap('lp-mv', id, parts.join('\n'));
+    if (!has(d.src)) return wrap('lp-mv', id, '');
+    const media = (d.mediaType === 'video')
+      ? '<video src="' + esc(d.src) + '" autoplay muted loop playsinline></video>'
+      : '<img src="' + esc(d.src) + '" alt="' + esc(d.alt) + '">';
+    const inner = '<div class="lp-mv__media">\n' + ind(linked(media, d.linkUrl), 2) + '\n</div>';
+    return wrap('lp-mv', id, inner);
   },
   text(d, id){
     const parts = [];
     if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
     if (has(d.body))    parts.push('<div class="lp-text__body">\n' + ind(paragraphs(d.body), 2) + '\n</div>');
-    return wrap('lp-text', id, parts.join('\n'));
+    return wrap('lp-text', id, parts.join('\n'), alignAttr(d.align));
   },
   image(d, id){
     const parts = [];
     if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
     if (has(d.src)) {
+      const img = '<img src="' + esc(d.src) + '" alt="' + esc(d.alt) + '">';
       const fig = ['<figure class="lp-image__figure">'];
-      fig.push('  <img src="' + esc(d.src) + '" alt="' + esc(d.alt) + '">');
+      fig.push(ind(linked(img, d.linkUrl), 2));
       if (has(d.caption)) fig.push('  <figcaption class="lp-image__caption">' + esc(d.caption) + '</figcaption>');
       fig.push('</figure>');
       parts.push(fig.join('\n'));
     }
-    return wrap('lp-image', id, parts.join('\n'));
+    return wrap('lp-image', id, parts.join('\n'), alignAttr(d.align));
   },
   button(d, id){
-    if (!has(d.label)) return wrap('lp-buttonarea', id, '', ' data-align="' + esc(d.align) + '"');
-    const a = '<a class="lp-btn" href="' + esc(has(d.url) ? d.url : '#') + '">' + esc(d.label) + '</a>';
-    return wrap('lp-buttonarea', id, a, ' data-align="' + esc(d.align) + '"');
+    const style = (d.style === 'outline') ? 'outline' : 'fill';
+    const place = (d.align === 'left') ? 'left' : (d.align === 'right' ? 'right' : 'center');
+    const attr = ' data-align="' + place + '"';
+    if (!has(d.label)) return wrap('lp-buttonarea', id, '', attr);
+    const a = '<a class="lp-btn lp-btn--' + style + '" href="' + esc(has(d.url) ? d.url : '#') + '">' + esc(d.label) + '</a>';
+    return wrap('lp-buttonarea', id, a, attr);
   },
   cardGrid(d, id){
     const parts = [];
     if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
     const items = d.cards.map(c => {
       const inner = [];
-      if (has(c.src))   inner.push('<img class="lp-card__image" src="' + esc(c.src) + '" alt="' + esc(c.alt) + '">');
+      if (has(c.src)) {
+        const img = '<img class="lp-card__image" src="' + esc(c.src) + '" alt="' + esc(c.alt) + '">';
+        inner.push(linked(img, c.linkUrl));
+      }
       if (has(c.title)) inner.push('<h3 class="lp-card__title">' + esc(c.title) + '</h3>');
       if (has(c.body))  inner.push(paragraphs(c.body, 'lp-card__body'));
-      if (has(c.buttonLabel)) inner.push('<a class="lp-btn lp-btn--sm" href="' + esc(has(c.buttonUrl) ? c.buttonUrl : '#') + '">' + esc(c.buttonLabel) + '</a>');
+      if (has(c.buttonLabel)) inner.push('<a class="lp-btn lp-btn--fill lp-btn--sm" href="' + esc(has(c.buttonUrl) ? c.buttonUrl : '#') + '">' + esc(c.buttonLabel) + '</a>');
       if (!inner.length) return '  <li class="lp-card"></li>';
       return '  <li class="lp-card">\n' + ind(inner.join('\n'), 4) + '\n  </li>';
     }).join('\n');
     parts.push('<ul class="lp-cards__grid" data-columns="' + esc(d.columns) + '">\n' + items + '\n</ul>');
-    return wrap('lp-cards', id, parts.join('\n'));
+    return wrap('lp-cards', id, parts.join('\n'), alignAttr(d.align));
   },
   accordion(d, id){
     const parts = [];
@@ -886,7 +992,7 @@ const HTMLGEN = {
       ].join('\n');
     }).join('\n');
     parts.push('<div class="lp-accordion__list">\n' + items + '\n</div>');
-    return wrap('lp-accordion', id, parts.join('\n'));
+    return wrap('lp-accordion', id, parts.join('\n'), alignAttr(d.align));
   },
   tabs(d, id){
     const parts = [];
@@ -904,14 +1010,17 @@ const HTMLGEN = {
       const inner = has(it.body) ? ind(paragraphs(it.body), 2) : '';
       parts.push(inner ? open + '\n' + inner + '\n</div>' : open + '</div>');
     });
-    return wrap('lp-tabs', id, parts.join('\n'));
+    return wrap('lp-tabs', id, parts.join('\n'), alignAttr(d.align));
   },
   carousel(d, id){
     const parts = [];
     if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
     const slides = d.slides.map(s => {
       const inner = [];
-      if (has(s.src)) inner.push('<img src="' + esc(s.src) + '" alt="' + esc(s.alt) + '">');
+      if (has(s.src)) {
+        const img = '<img src="' + esc(s.src) + '" alt="' + esc(s.alt) + '">';
+        inner.push(linked(img, s.linkUrl));
+      }
       if (has(s.caption)) inner.push('<p class="lp-carousel__caption">' + esc(s.caption) + '</p>');
       if (!inner.length) return '    <li class="lp-carousel__slide"></li>';
       return '    <li class="lp-carousel__slide">\n' + ind(inner.join('\n'), 6) + '\n    </li>';
@@ -929,7 +1038,7 @@ const HTMLGEN = {
     parts.push('<button class="lp-carousel__nav lp-carousel__nav--prev" type="button" aria-label="前のスライド">&#8249;</button>');
     parts.push('<button class="lp-carousel__nav lp-carousel__nav--next" type="button" aria-label="次のスライド">&#8250;</button>');
     parts.push('<div class="lp-carousel__dots">\n' + dots + '\n</div>');
-    const attr = ' data-autoplay="' + (d.autoplay ? 'true' : 'false') + '" data-interval="' + esc(String(d.interval || 5000)) + '"';
+    const attr = alignAttr(d.align) + ' data-autoplay="' + (d.autoplay ? 'true' : 'false') + '" data-interval="' + esc(String(d.interval || 5000)) + '"';
     return wrap('lp-carousel', id, parts.join('\n'), attr);
   },
   comparisonTable(d, id){
@@ -952,7 +1061,7 @@ const HTMLGEN = {
       '  </table>',
       '</div>'
     ].join('\n'));
-    return wrap('lp-compare', id, parts.join('\n'));
+    return wrap('lp-compare', id, parts.join('\n'), alignAttr(d.align));
   }
 };
 
@@ -962,8 +1071,14 @@ function wrap(cls, id, inner, extraAttr){
   return '<section class="lp-section ' + cls + '" id="' + id + '"' + attr + '>\n' + ind(inner, 2) + '\n</section>';
 }
 
-/* ---- セクションごとのCSS ---- */
-const CSS_BASE = `/* ---------- base ---------- */
+/* ---- CSS ---- */
+function cssBase(contentWidth){
+  return `/* ---------- base ---------- */
+:root {
+  --lp-content-width: ${contentWidth}px;
+  --lp-button-color: ${BUTTON_BASE_COLOR};
+}
+
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -982,38 +1097,23 @@ video { max-width: 100%; height: auto; display: block; }
 
 [hidden] { display: none !important; }
 
+/* コンテンツ幅：これを上限に、画面が狭いときは自動で縮む */
 .lp-section {
-  max-width: 1080px;
+  max-width: var(--lp-content-width);
   margin: 0 auto;
   padding: 64px 20px;
 }
+
+.lp-section[data-align="left"] { text-align: left; }
+.lp-section[data-align="center"] { text-align: center; }
 
 .lp-heading {
   font-size: 28px;
   line-height: 1.4;
   margin: 0 0 28px;
-  text-align: center;
 }
 
-.lp-btn {
-  display: inline-block;
-  padding: 14px 32px;
-  border-radius: 4px;
-  background: #1c56d6;
-  color: #ffffff;
-  font-weight: 700;
-  text-decoration: none;
-  transition: background .2s;
-}
-
-.lp-btn:hover { background: #1442ab; }
-
-.lp-btn:focus-visible {
-  outline: 3px solid #1c56d6;
-  outline-offset: 2px;
-}
-
-.lp-btn--sm { padding: 9px 20px; font-size: 14px; }
+.lp-medialink { display: block; }
 
 @media (max-width: 768px) {
   .lp-section { padding: 44px 16px; }
@@ -1024,34 +1124,79 @@ video { max-width: 100%; height: auto; display: block; }
   * { transition: none !important; animation: none !important; }
 }
 `;
+}
+
+const CSS_BUTTON = `/* ---------- ボタン（共通デザイン） ---------- */
+.lp-btn {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  padding: 16px 32px;
+  border-radius: 4px;
+  font-size: ${BUTTON_FONT_SIZE}px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color .2s, color .2s;
+}
+
+/* 塗りつぶし */
+.lp-btn--fill {
+  background: var(--lp-button-color);
+  border: 2px solid var(--lp-button-color);
+  color: #ffffff;
+}
+
+.lp-btn--fill:hover { background: #b00000; border-color: #b00000; }
+
+/* 白抜き（枠線） */
+.lp-btn--outline {
+  background: #ffffff;
+  border: 2px solid var(--lp-button-color);
+  border-radius: 6px;
+  color: var(--lp-button-color);
+}
+
+.lp-btn--outline:hover { background: #fff2f2; }
+
+.lp-btn:focus-visible {
+  outline: 3px solid var(--lp-button-color);
+  outline-offset: 3px;
+}
+
+/* カード内など、小さく置くとき */
+.lp-btn--sm {
+  width: auto;
+  max-width: none;
+  padding: 10px 22px;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .lp-btn { font-size: 19px; padding: 14px 20px; }
+  .lp-btn--sm { font-size: 15px; padding: 9px 18px; }
+}
+`;
 
 const CSS_PARTS = {
   mainVisual: `/* ---------- メインビジュアル ---------- */
-.lp-mv { max-width: none; padding: 0; position: relative; }
+.lp-mv { max-width: none; padding: 0; }
 .lp-mv__media img,
 .lp-mv__media video { width: 100%; object-fit: cover; }
-.lp-mv__body { max-width: 1080px; margin: 0 auto; padding: 40px 20px 56px; text-align: center; }
-.lp-mv__catch { font-size: 36px; line-height: 1.35; margin: 0 0 16px; }
-.lp-mv__sub { font-size: 17px; margin: 0 0 28px; }
-@media (max-width: 768px) {
-  .lp-mv__body { padding: 28px 16px 40px; }
-  .lp-mv__catch { font-size: 25px; }
-  .lp-mv__sub { font-size: 15px; }
-}
 `,
   text: `/* ---------- テキスト ---------- */
-.lp-text__body { max-width: 760px; margin: 0 auto; }
 .lp-text__body p { margin: 0 0 1.4em; }
 .lp-text__body p:last-child { margin-bottom: 0; }
 `,
   image: `/* ---------- 画像 ---------- */
-.lp-image__figure { margin: 0; max-width: 880px; margin-inline: auto; }
-.lp-image__caption { margin-top: 10px; font-size: 14px; color: #5b6675; text-align: center; }
+.lp-image__figure { margin: 0; }
+.lp-image__caption { margin-top: 10px; font-size: 14px; color: #5b6675; }
 `,
-  button: `/* ---------- ボタン ---------- */
-.lp-buttonarea { text-align: center; }
-.lp-buttonarea[data-align="left"] { text-align: left; }
-.lp-buttonarea[data-align="right"] { text-align: right; }
+  button: `/* ---------- ボタンセクション ---------- */
+.lp-buttonarea[data-align="left"] .lp-btn { margin-left: 0; margin-right: auto; }
+.lp-buttonarea[data-align="center"] .lp-btn { margin-left: auto; margin-right: auto; }
+.lp-buttonarea[data-align="right"] .lp-btn { margin-left: auto; margin-right: 0; }
 `,
   cardGrid: `/* ---------- カードグリッド ---------- */
 .lp-cards__grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 24px; }
@@ -1070,7 +1215,9 @@ const CSS_PARTS = {
 .lp-card__image { width: 100%; border-radius: 4px; }
 .lp-card__title { font-size: 18px; margin: 0; }
 .lp-card__body { margin: 0; font-size: 15px; }
-.lp-card .lp-btn { align-self: flex-start; margin-top: auto; }
+.lp-card .lp-btn { margin-top: auto; }
+.lp-cards[data-align="left"] .lp-card .lp-btn { align-self: flex-start; }
+.lp-cards[data-align="center"] .lp-card .lp-btn { align-self: center; }
 @media (max-width: 900px) {
   .lp-cards__grid[data-columns="3"],
   .lp-cards__grid[data-columns="4"] { grid-template-columns: repeat(2, 1fr); }
@@ -1082,7 +1229,8 @@ const CSS_PARTS = {
 }
 `,
   accordion: `/* ---------- アコーディオン ---------- */
-.lp-accordion__list { max-width: 800px; margin: 0 auto; border-top: 1px solid #dfe4ec; }
+/* 開閉する項目の中身は、読みやすさのため常に左揃え */
+.lp-accordion__list { border-top: 1px solid #dfe4ec; text-align: left; }
 .lp-accordion__item { border-bottom: 1px solid #dfe4ec; }
 .lp-accordion__head { margin: 0; font-size: inherit; font-weight: inherit; }
 .lp-accordion__trigger {
@@ -1120,10 +1268,9 @@ const CSS_PARTS = {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-width: 880px;
-  margin: 0 auto;
   border-bottom: 1px solid #dfe4ec;
 }
+.lp-tabs[data-align="center"] .lp-tabs__list { justify-content: center; }
 .lp-tabs__tab {
   padding: 12px 22px;
   border: 0;
@@ -1135,13 +1282,13 @@ const CSS_PARTS = {
 }
 .lp-tabs__tab[aria-selected="true"] { color: #1c56d6; font-weight: 700; border-bottom-color: #1c56d6; }
 .lp-tabs__tab:focus-visible { outline: 3px solid #1c56d6; outline-offset: -3px; }
-.lp-tabs__panel { max-width: 880px; margin: 0 auto; padding: 26px 0 0; }
+.lp-tabs__panel { padding: 26px 0 0; }
 .lp-tabs__panel p { margin: 0 0 1em; }
 .lp-tabs__panel p:last-child { margin-bottom: 0; }
 `,
   carousel: `/* ---------- カルーセル ---------- */
 .lp-carousel { position: relative; }
-.lp-carousel__viewport { overflow: hidden; max-width: 880px; margin: 0 auto; }
+.lp-carousel__viewport { overflow: hidden; }
 .lp-carousel__track {
   list-style: none;
   margin: 0;
@@ -1150,7 +1297,7 @@ const CSS_PARTS = {
   transition: transform .4s ease;
 }
 .lp-carousel__slide { flex: 0 0 100%; }
-.lp-carousel__caption { margin: 10px 0 0; font-size: 14px; color: #5b6675; text-align: center; }
+.lp-carousel__caption { margin: 10px 0 0; font-size: 14px; color: #5b6675; }
 .lp-carousel__nav {
   position: absolute;
   top: 50%;
@@ -1191,6 +1338,8 @@ const CSS_PARTS = {
   text-align: left;
   vertical-align: top;
 }
+.lp-compare[data-align="center"] .lp-compare__table th,
+.lp-compare[data-align="center"] .lp-compare__table td { text-align: center; }
 .lp-compare__table thead th { background: #f2f5fa; white-space: nowrap; }
 .lp-compare__table tbody th { background: #fafbfd; font-weight: 700; white-space: nowrap; }
 `
@@ -1287,7 +1436,7 @@ const JS_PARTS = {
 /* =========================================================
    Alpine コンポーネント
    ========================================================= */
-const STORAGE_KEY = 'lp-block-builder-session';
+const STORAGE_KEY = 'lp-block-builder-session-v2';
 
 document.addEventListener('alpine:init', function () {
   Alpine.data('builder', function () {
@@ -1299,7 +1448,7 @@ document.addEventListener('alpine:init', function () {
         { no:4, label:'出力' }
       ],
       step: 1,
-      page: { title:'', lang:'ja' },
+      page: { title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH) },
       sections: [],
       nextId: 1,
       activeFile: 'index.html',
@@ -1321,6 +1470,12 @@ document.addEventListener('alpine:init', function () {
         return order.map(type => Object.assign({ type }, DEFS[type]));
       },
       defOf(sec) { return DEFS[sec.type] || { label: sec.type, group: 'basic', desc: '' }; },
+      contentWidthPx() {
+        const n = parseInt(this.page.contentWidth, 10);
+        if (isNaN(n) || n < 320 || n > 1920) return DEFAULT_CONTENT_WIDTH;
+        return n;
+      },
+      alignLabel(a) { return a === 'center' ? '中央揃え' : '左揃え'; },
 
       /* ---- 構成の編集 ---- */
       addSection(type) {
@@ -1334,6 +1489,7 @@ document.addEventListener('alpine:init', function () {
         this.sections.splice(j, 0, moved);
       },
       newCard() { return blankCard(); },
+      newSlide() { return blankSlide(); },
       addColumn(sec) {
         sec.data.headers.push('');
         sec.data.rows.forEach(r => r.values.push(''));
@@ -1362,7 +1518,7 @@ document.addEventListener('alpine:init', function () {
       },
       resetAll() {
         if (!window.confirm('入力内容をすべて消して最初からやり直します。よろしいですか？')) return;
-        this.page = { title:'', lang:'ja' };
+        this.page = { title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH) };
         this.sections = [];
         this.nextId = 1;
         this.step = 1;
@@ -1377,37 +1533,40 @@ document.addEventListener('alpine:init', function () {
       reviewOf(sec) {
         const d = sec.data;
         const v = x => (has(x) ? String(x) : '');
+        const al = ['テキストの配置', this.alignLabel(d.align)];
         switch (sec.type) {
           case 'mainVisual':
             return [{ group:'', rows: [
               ['メディア種別', d.mediaType === 'video' ? '動画' : '画像'],
               ['メディアのURL / パス', v(d.src)],
               ['代替テキスト', d.mediaType === 'video' ? '（動画のため対象外）' : v(d.alt)],
-              ['キャッチコピー', v(d.catch)],
-              ['サブコピー', v(d.sub)],
-              ['ボタンのラベル', v(d.buttonLabel)],
-              ['ボタンのリンク先', v(d.buttonUrl)]
+              ['リンク先', v(d.linkUrl)]
             ]}];
           case 'text':
-            return [{ group:'', rows: [['見出し', v(d.heading)], ['本文', v(d.body)]] }];
+            return [{ group:'', rows: [['見出し', v(d.heading)], al, ['本文', v(d.body)]] }];
           case 'image':
             return [{ group:'', rows: [
               ['見出し', v(d.heading)],
+              al,
               ['画像のURL / パス', v(d.src)],
               ['代替テキスト', v(d.alt)],
+              ['画像のリンク先', v(d.linkUrl)],
               ['キャプション', v(d.caption)]
             ]}];
           case 'button':
             return [{ group:'', rows: [
               ['ラベル', v(d.label)],
               ['リンク先', v(d.url)],
-              ['配置', d.align === 'left' ? '左寄せ' : (d.align === 'right' ? '右寄せ' : '中央')]
+              ['配置', d.align === 'left' ? '左寄せ' : (d.align === 'right' ? '右寄せ' : '中央')],
+              ['デザイン', d.style === 'outline' ? '白抜き（枠線）' : '塗りつぶし'],
+              ['ベースカラー / 文字サイズ', BUTTON_BASE_COLOR + ' / ' + BUTTON_FONT_SIZE + 'px']
             ]}];
           case 'cardGrid': {
-            const blocks = [{ group:'', rows: [['見出し', v(d.heading)], ['カラム数', d.columns + '列']] }];
+            const blocks = [{ group:'', rows: [['見出し', v(d.heading)], ['カラム数', d.columns + '列'], al] }];
             d.cards.forEach((c, i) => blocks.push({ group: 'CARD ' + (i + 1), rows: [
               ['画像のURL / パス', v(c.src)],
               ['代替テキスト', v(c.alt)],
+              ['画像のリンク先', v(c.linkUrl)],
               ['カードの見出し', v(c.title)],
               ['カードの本文', v(c.body)],
               ['ボタンのラベル', v(c.buttonLabel)],
@@ -1416,7 +1575,7 @@ document.addEventListener('alpine:init', function () {
             return blocks;
           }
           case 'accordion': {
-            const blocks = [{ group:'', rows: [['見出し', v(d.heading)]] }];
+            const blocks = [{ group:'', rows: [['見出し', v(d.heading)], al] }];
             d.items.forEach((it, i) => blocks.push({ group: 'ITEM ' + (i + 1), rows: [
               ['開閉ボタンのテキスト', v(it.title)],
               ['開いたときの本文', v(it.body)]
@@ -1424,7 +1583,7 @@ document.addEventListener('alpine:init', function () {
             return blocks;
           }
           case 'tabs': {
-            const blocks = [{ group:'', rows: [['見出し', v(d.heading)]] }];
+            const blocks = [{ group:'', rows: [['見出し', v(d.heading)], al] }];
             d.items.forEach((it, i) => blocks.push({ group: 'TAB ' + (i + 1), rows: [
               ['タブのラベル', v(it.label)],
               ['タブの中身', v(it.body)]
@@ -1434,12 +1593,14 @@ document.addEventListener('alpine:init', function () {
           case 'carousel': {
             const blocks = [{ group:'', rows: [
               ['見出し', v(d.heading)],
+              al,
               ['自動で切り替える', d.autoplay ? 'する' : 'しない'],
               ['切り替え間隔', d.autoplay ? (d.interval + ' ミリ秒') : '（自動切り替えなし）']
             ]}];
             d.slides.forEach((s, i) => blocks.push({ group: 'SLIDE ' + (i + 1), rows: [
               ['画像のURL / パス', v(s.src)],
               ['代替テキスト', v(s.alt)],
+              ['画像のリンク先', v(s.linkUrl)],
               ['キャプション', v(s.caption)]
             ]}));
             return blocks;
@@ -1448,6 +1609,7 @@ document.addEventListener('alpine:init', function () {
             const blocks = [{ group:'', rows: [
               ['見出し', v(d.heading)],
               ['左上のセルの見出し', v(d.cornerLabel)],
+              al,
               ['列の見出し', d.headers.map((h, i) => (i + 1) + '. ' + (has(h) ? h : '（未入力）')).join('\n')]
             ]}];
             d.rows.forEach((r, i) => blocks.push({ group: 'ROW ' + (i + 1), rows:
@@ -1465,16 +1627,17 @@ document.addEventListener('alpine:init', function () {
       blanks() {
         const out = [];
         if (!has(this.page.title)) out.push('ページタイトルが未入力です。');
+        const w = parseInt(this.page.contentWidth, 10);
+        if (isNaN(w) || w < 320 || w > 1920) {
+          out.push('コンテンツ幅が未入力か範囲外です（320〜1920px）。' + DEFAULT_CONTENT_WIDTH + 'pxとして出力します。');
+        }
         this.sections.forEach((sec, i) => {
           const label = String(i + 1).padStart(2, '0') + ' ' + this.defOf(sec).label + '：';
           const d = sec.data;
-          if (sec.type === 'mainVisual') {
-            if (!has(d.src))   out.push(label + 'メディアのURL / パスが未入力です。');
-            if (!has(d.catch)) out.push(label + 'キャッチコピーが未入力です。');
-          }
-          if (sec.type === 'text' && !has(d.body))    out.push(label + '本文が未入力です。');
-          if (sec.type === 'image' && !has(d.src))    out.push(label + '画像のURL / パスが未入力です。');
-          if (sec.type === 'button' && !has(d.label)) out.push(label + 'ラベルが未入力です。');
+          if (sec.type === 'mainVisual' && !has(d.src)) out.push(label + 'メディアのURL / パスが未入力です。');
+          if (sec.type === 'text' && !has(d.body))      out.push(label + '本文が未入力です。');
+          if (sec.type === 'image' && !has(d.src))      out.push(label + '画像のURL / パスが未入力です。');
+          if (sec.type === 'button' && !has(d.label))   out.push(label + 'ラベルが未入力です。');
           if (sec.type === 'cardGrid') {
             d.cards.forEach((c, ci) => {
               if (!has(c.title) && !has(c.body) && !has(c.src)) out.push(label + 'カード ' + (ci + 1) + ' が空です。');
@@ -1508,6 +1671,12 @@ document.addEventListener('alpine:init', function () {
       usedTypes() {
         return this.sections.map(s => s.type).filter((t, i, arr) => arr.indexOf(t) === i);
       },
+      needsButtonCss() {
+        return this.sections.some(sec =>
+          (sec.type === 'button' && has(sec.data.label)) ||
+          (sec.type === 'cardGrid' && sec.data.cards.some(c => has(c.buttonLabel)))
+        );
+      },
       buildHtml() {
         const body = this.sections.map((sec, i) => {
           const id = 'section-' + String(i + 1).padStart(2, '0');
@@ -1540,8 +1709,9 @@ document.addEventListener('alpine:init', function () {
       },
       buildCss() {
         const used = this.usedTypes();
-        const blocks = [CSS_BASE];
-        ['mainVisual','text','image','button','cardGrid','accordion','tabs','carousel','comparisonTable']
+        const blocks = [cssBase(this.contentWidthPx())];
+        if (this.needsButtonCss()) blocks.push(CSS_BUTTON);
+        BASIC_ORDER.concat(LAYOUT_ORDER)
           .forEach(t => { if (used.indexOf(t) !== -1 && CSS_PARTS[t]) blocks.push(CSS_PARTS[t]); });
         return blocks.join('\n');
       },
@@ -1563,12 +1733,11 @@ document.addEventListener('alpine:init', function () {
         ].join('\n');
       },
       fileList() {
-        const files = [
+        return [
           { name:'index.html', code: this.buildHtml() },
           { name:'style.css',  code: this.buildCss() },
           { name:'script.js',  code: this.buildJs() }
         ];
-        return files;
       },
       currentCode() {
         const f = this.fileList().find(x => x.name === this.activeFile);
@@ -1650,12 +1819,22 @@ document.addEventListener('alpine:init', function () {
         if (!raw) return;
         try {
           const saved = JSON.parse(raw);
-          if (saved && Array.isArray(saved.sections)) {
-            this.page = Object.assign({ title:'', lang:'ja' }, saved.page || {});
-            this.sections = saved.sections;
-            this.nextId = saved.nextId || (saved.sections.length + 1);
-            this.step = saved.sections.length > 0 ? (saved.step || 1) : 1;
-          }
+          if (!saved || !Array.isArray(saved.sections)) return;
+          this.page = Object.assign(
+            { title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH) },
+            saved.page || {}
+          );
+          /* 保存済みデータに新しい項目が無くても壊れないよう、既定値で補う */
+          this.sections = saved.sections
+            .filter(sec => sec && DEFS[sec.type])
+            .map(sec => {
+              const data = Object.assign(defaultData(sec.type), sec.data || {});
+              if (Array.isArray(data.cards))  data.cards  = data.cards.map(c => Object.assign(blankCard(), c));
+              if (Array.isArray(data.slides)) data.slides = data.slides.map(s => Object.assign(blankSlide(), s));
+              return { id: sec.id, type: sec.type, data: data };
+            });
+          this.nextId = saved.nextId || (this.sections.length + 1);
+          this.step = this.sections.length > 0 ? (saved.step || 1) : 1;
         } catch (e) { /* 壊れた保存データは無視して初期状態から始める */ }
       }
     };
