@@ -78,6 +78,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 .checkline label{margin:0;font-weight:400}
 .unit{display:flex;align-items:center;gap:8px}
 .unit__suffix{font-size:13px;color:var(--ink-mute);flex:none}
+.fieldnote{font-size:12px;color:var(--ink-mute);margin:6px 0 0;line-height:1.6}
+.fieldnote code{
+  font-family:var(--mono);font-size:11px;background:#f2f5fa;
+  border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px;
+  word-break:break-all;
+}
 
 /* ---- buttons ---- */
 .btn{
@@ -253,12 +259,85 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
             <option value="ja">日本語（ja）</option>
             <option value="en">English（en）</option>
           </select>
+          <p class="fieldnote" x-show="page.outputMode === 'template'">
+            テンプレートに差し込む場合、この設定は使われません（テンプレート側の lang が優先されます）。
+          </p>
         </div>
         <div class="field">
           <label for="contentWidth">コンテンツ幅<span class="hint">画面がこれより狭いときは自動で幅いっぱいに広がります</span></label>
           <div class="unit">
             <input id="contentWidth" type="number" min="320" max="1920" step="10" x-model="page.contentWidth">
             <span class="unit__suffix">px</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel__head">出力方法</h2>
+      <p class="panel__lead">HTMLを単体で出力するか、既存のテンプレートに差し込むかを選びます。</p>
+
+      <div class="field">
+        <label for="outputMode">出力の形式</label>
+        <select id="outputMode" x-model="page.outputMode">
+          <option value="standalone">単体のHTMLを出力する</option>
+          <option value="template">テンプレートに差し込んで出力する</option>
+        </select>
+      </div>
+
+      <div x-show="page.outputMode === 'template'">
+        <div class="field">
+          <label for="tplMarker">目印コメントの文言<span class="hint">この文言のコメントを2つで1組とみなします</span></label>
+          <input id="tplMarker" type="text" x-model="page.templateMarker" @input="onTemplateChange()" placeholder="編集可能領域">
+        </div>
+        <div class="field">
+          <label for="tplBody">テンプレートHTML<span class="hint">まるごと貼り付けてください</span></label>
+          <textarea id="tplBody" rows="8" x-model="page.template" @input="onTemplateChange()"
+                    placeholder="&lt;!DOCTYPE html&gt; から &lt;/html&gt; まで貼り付け"></textarea>
+        </div>
+
+        <div class="empty" x-show="!page.template.trim()">
+          テンプレートを貼り付けると、編集可能領域を自動で検出します。
+        </div>
+
+        <div x-show="page.template.trim()">
+          <div class="warn" x-show="markerCount() === 0">
+            <p class="warn__title">目印コメントが見つかりません</p>
+            <p style="margin:0;font-size:12px">
+              <span x-text="'「<!-- ' + page.templateMarker + ' -->」'"></span>
+              という形のコメントが必要です。文言を確認してください。
+            </p>
+          </div>
+          <div class="warn" x-show="markerCount() > 0 && markerCount() % 2 === 1">
+            <p class="warn__title">目印コメントの数が奇数です</p>
+            <p style="margin:0;font-size:12px">2つで1組として扱うため、最後の1つは無視されます。</p>
+          </div>
+
+          <div x-show="templateRegions().length > 0">
+            <div class="item__head">
+              <p class="subhead" style="margin:0" x-text="'検出した編集可能領域：' + templateRegions().length + ' 箇所'"></p>
+              <button class="btn btn--sm" type="button" @click="resetRoles()">自動判定に戻す</button>
+            </div>
+            <template x-for="(r, ri) in templateRegions()" :key="ri">
+              <div class="item">
+                <div class="item__head">
+                  <span class="item__label" x-text="'AREA ' + r.no"></span>
+                  <span class="item__label" x-text="regionPlace(r)"></span>
+                </div>
+                <div class="field">
+                  <label>ここに差し込む内容</label>
+                  <select x-model="page.templateRoles[ri]">
+                    <option value="title">ページタイトル</option>
+                    <option value="assets">CSS・JSの読み込み</option>
+                    <option value="content">本文（セクション）</option>
+                    <option value="none">変更しない</option>
+                  </select>
+                </div>
+                <p class="fieldnote" style="margin:0">
+                  現在の中身：<code x-text="regionPreview(r)"></code>
+                </p>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -750,11 +829,22 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           </tr>
           <tr>
             <th scope="row">言語（lang属性）</th>
-            <td x-text="page.lang"></td>
+            <td>
+              <span x-text="page.lang"></span>
+              <span class="blank" x-show="usingTemplate()">（テンプレート側の指定が使われます）</span>
+            </td>
           </tr>
           <tr>
             <th scope="row">コンテンツ幅</th>
             <td x-text="contentWidthPx() + 'px'"></td>
+          </tr>
+          <tr>
+            <th scope="row">出力方法</th>
+            <td x-text="usingTemplate() ? 'テンプレートに差し込む' : '単体のHTMLを出力する'"></td>
+          </tr>
+          <tr x-show="usingTemplate()">
+            <th scope="row">差し込み先の領域</th>
+            <td x-text="templateRegions().map((r, i) => 'AREA ' + r.no + '（' + regionPlace(r) + '）→ ' + roleLabel(roleAt(i))).join('\n')"></td>
           </tr>
           <tr>
             <th scope="row">セクション数</th>
@@ -762,6 +852,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           </tr>
         </tbody>
       </table>
+      <p class="fieldnote" style="padding:0 14px 12px" x-show="usingTemplate()">
+        言語（lang属性）とviewportの設定は、どちらもテンプレート側の指定が使われます。このツールの設定は反映されません。
+      </p>
     </div>
 
     <template x-for="(sec, i) in sections" :key="sec.id">
@@ -915,6 +1008,54 @@ function linked(tag, url){
 function alignAttr(align){
   return ' data-align="' + (align === 'center' ? 'center' : 'left') + '"';
 }
+
+/* =========================================================
+   テンプレート解析
+   ========================================================= */
+function escapeRegExp(s){
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+/* 目印コメントの出現位置をすべて拾う */
+function findMarkers(template, marker){
+  if (!has(template) || !has(marker)) return [];
+  const re = new RegExp('<!--\\s*' + escapeRegExp(marker.trim()) + '\\s*-->', 'g');
+  const marks = [];
+  let m;
+  while ((m = re.exec(template)) !== null) {
+    marks.push({ start: m.index, end: m.index + m[0].length });
+  }
+  return marks;
+}
+/* 目印コメントを2つで1組とみなし、その間を編集可能領域として切り出す */
+function findRegions(template, marker){
+  const marks = findMarkers(template, marker);
+  const regions = [];
+  for (let i = 0; i + 1 < marks.length; i += 2) {
+    regions.push({
+      no: regions.length + 1,
+      openStart: marks[i].start,
+      contentStart: marks[i].end,
+      contentEnd: marks[i + 1].start,
+      current: template.slice(marks[i].end, marks[i + 1].start)
+    });
+  }
+  return regions;
+}
+/* 領域の中身と位置から、差し込む内容を自動で推測する */
+function guessRole(region, template){
+  const c = region.current;
+  if (/<title[\s>]/i.test(c)) return 'title';
+  if (/<link[\s>]|<script[\s>]|<style[\s>]/i.test(c)) return 'assets';
+  const headEnd = template.search(/<\/head>/i);
+  if (headEnd !== -1 && region.openStart < headEnd) return 'assets';
+  return 'content';
+}
+const ROLE_LABELS = {
+  title:   'ページタイトル',
+  assets:  'CSS・JSの読み込み',
+  content: '本文（セクション）',
+  none:    '変更しない'
+};
 
 /* ---- セクションごとのHTML生成 ---- */
 const HTMLGEN = {
@@ -1072,14 +1213,9 @@ function wrap(cls, id, inner, extraAttr){
 }
 
 /* ---- CSS ---- */
-function cssBase(contentWidth){
-  return `/* ---------- base ---------- */
-:root {
-  --lp-content-width: ${contentWidth}px;
-  --lp-button-color: ${BUTTON_BASE_COLOR};
-}
-
-*,
+function cssBase(contentWidth, standalone){
+  const globals = standalone
+    ? `*,
 *::before,
 *::after { box-sizing: border-box; }
 
@@ -1091,24 +1227,38 @@ body {
   color: #1c2430;
   background: #ffffff;
 }
+`
+    : `/* テンプレートに差し込むため、body など全体に効くスタイルは出力していません。
+   フォント・文字色・リセットは、テンプレート側の共通CSSがそのまま使われます。 */
+`;
 
-img,
-video { max-width: 100%; height: auto; display: block; }
+  return `/* ---------- base ---------- */
+:root {
+  --lp-content-width: ${contentWidth}px;
+  --lp-button-color: ${BUTTON_BASE_COLOR};
+}
 
-[hidden] { display: none !important; }
-
+${globals}
 /* コンテンツ幅：これを上限に、画面が狭いときは自動で縮む */
 .lp-section {
   max-width: var(--lp-content-width);
   margin: 0 auto;
   padding: 64px 20px;
+  line-height: 1.8;
 }
 
 .lp-section[data-align="left"] { text-align: left; }
 .lp-section[data-align="center"] { text-align: center; }
 
+.lp-section img,
+.lp-section video { max-width: 100%; height: auto; display: block; }
+
+.lp-section [hidden] { display: none !important; }
+
+/* リセットCSSで font: inherit が当たる環境でも太字が保たれるよう明示する */
 .lp-heading {
   font-size: 28px;
+  font-weight: 700;
   line-height: 1.4;
   margin: 0 0 28px;
 }
@@ -1127,6 +1277,7 @@ video { max-width: 100%; height: auto; display: block; }
 }
 
 const CSS_BUTTON = `/* ---------- ボタン（共通デザイン） ---------- */
+/* リセットCSSの a:link / a:hover に負けないよう、擬似クラスを併記して詳細度をそろえる */
 .lp-btn {
   display: block;
   width: 100%;
@@ -1137,12 +1288,21 @@ const CSS_BUTTON = `/* ---------- ボタン（共通デザイン） ---------- *
   font-weight: 700;
   line-height: 1.4;
   text-align: center;
-  text-decoration: none;
   transition: background-color .2s, color .2s;
 }
 
+.lp-btn,
+.lp-btn:link,
+.lp-btn:visited,
+.lp-btn:hover,
+.lp-btn:active { text-decoration: none; }
+
 /* 塗りつぶし */
-.lp-btn--fill {
+.lp-btn--fill,
+.lp-btn--fill:link,
+.lp-btn--fill:visited,
+.lp-btn--fill:hover,
+.lp-btn--fill:active {
   background: var(--lp-button-color);
   border: 2px solid var(--lp-button-color);
   color: #ffffff;
@@ -1151,7 +1311,11 @@ const CSS_BUTTON = `/* ---------- ボタン（共通デザイン） ---------- *
 .lp-btn--fill:hover { background: #b00000; border-color: #b00000; }
 
 /* 白抜き（枠線） */
-.lp-btn--outline {
+.lp-btn--outline,
+.lp-btn--outline:link,
+.lp-btn--outline:visited,
+.lp-btn--outline:hover,
+.lp-btn--outline:active {
   background: #ffffff;
   border: 2px solid var(--lp-button-color);
   border-radius: 6px;
@@ -1213,7 +1377,7 @@ const CSS_PARTS = {
   background: #ffffff;
 }
 .lp-card__image { width: 100%; border-radius: 4px; }
-.lp-card__title { font-size: 18px; margin: 0; }
+.lp-card__title { font-size: 18px; font-weight: 700; margin: 0; }
 .lp-card__body { margin: 0; font-size: 15px; }
 .lp-card .lp-btn { margin-top: auto; }
 .lp-cards[data-align="left"] .lp-card .lp-btn { align-self: flex-start; }
@@ -1340,7 +1504,7 @@ const CSS_PARTS = {
 }
 .lp-compare[data-align="center"] .lp-compare__table th,
 .lp-compare[data-align="center"] .lp-compare__table td { text-align: center; }
-.lp-compare__table thead th { background: #f2f5fa; white-space: nowrap; }
+.lp-compare__table thead th { background: #f2f5fa; font-weight: 700; white-space: nowrap; }
 .lp-compare__table tbody th { background: #fafbfd; font-weight: 700; white-space: nowrap; }
 `
 };
@@ -1448,7 +1612,10 @@ document.addEventListener('alpine:init', function () {
         { no:4, label:'出力' }
       ],
       step: 1,
-      page: { title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH) },
+      page: {
+        title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH),
+        outputMode:'standalone', template:'', templateMarker:'編集可能領域', templateRoles:[]
+      },
       sections: [],
       nextId: 1,
       activeFile: 'index.html',
@@ -1476,6 +1643,44 @@ document.addEventListener('alpine:init', function () {
         return n;
       },
       alignLabel(a) { return a === 'center' ? '中央揃え' : '左揃え'; },
+
+      /* ---- テンプレート ---- */
+      usingTemplate() {
+        return this.page.outputMode === 'template'
+          && has(this.page.template)
+          && this.templateRegions().length > 0;
+      },
+      markerCount() { return findMarkers(this.page.template, this.page.templateMarker).length; },
+      templateRegions() { return findRegions(this.page.template, this.page.templateMarker); },
+      /* 領域の数が変わったときだけ、差し込む内容を自動で判定し直す */
+      onTemplateChange() {
+        const regs = this.templateRegions();
+        if (this.page.templateRoles.length !== regs.length) this.resetRoles();
+      },
+      resetRoles() {
+        const regs = this.templateRegions();
+        let contentTaken = false;
+        this.page.templateRoles = regs.map(r => {
+          let role = guessRole(r, this.page.template);
+          if (role === 'content') {
+            if (contentTaken) role = 'none';
+            else contentTaken = true;
+          }
+          return role;
+        });
+      },
+      roleAt(i) { return this.page.templateRoles[i] || 'none'; },
+      roleLabel(role) { return ROLE_LABELS[role] || ROLE_LABELS.none; },
+      regionPlace(r) {
+        const headEnd = this.page.template.search(/<\/head>/i);
+        if (headEnd === -1) return '位置：不明';
+        return r.openStart < headEnd ? 'head内' : 'body内';
+      },
+      regionPreview(r) {
+        const t = r.current.replace(/\s+/g, ' ').trim();
+        if (!t) return '（空）';
+        return t.length > 70 ? t.slice(0, 70) + '…' : t;
+      },
 
       /* ---- 構成の編集 ---- */
       addSection(type) {
@@ -1518,7 +1723,10 @@ document.addEventListener('alpine:init', function () {
       },
       resetAll() {
         if (!window.confirm('入力内容をすべて消して最初からやり直します。よろしいですか？')) return;
-        this.page = { title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH) };
+        this.page = {
+          title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH),
+          outputMode:'standalone', template:'', templateMarker:'編集可能領域', templateRoles:[]
+        };
         this.sections = [];
         this.nextId = 1;
         this.step = 1;
@@ -1631,6 +1839,27 @@ document.addEventListener('alpine:init', function () {
         if (isNaN(w) || w < 320 || w > 1920) {
           out.push('コンテンツ幅が未入力か範囲外です（320〜1920px）。' + DEFAULT_CONTENT_WIDTH + 'pxとして出力します。');
         }
+        if (this.page.outputMode === 'template') {
+          if (!has(this.page.template)) {
+            out.push('テンプレートが貼り付けられていません。単体のHTMLとして出力します。');
+          } else if (this.markerCount() === 0) {
+            out.push('テンプレートに目印コメントが見つかりません。単体のHTMLとして出力します。');
+          } else {
+            if (this.markerCount() % 2 === 1) {
+              out.push('目印コメントの数が奇数です。最後の1つは無視されます。');
+            }
+            const roles = this.templateRegions().map((r, i) => this.roleAt(i));
+            if (roles.indexOf('content') === -1) {
+              out.push('「本文（セクション）」を差し込む領域が指定されていません。セクションが出力されません。');
+            }
+            if (roles.indexOf('assets') === -1) {
+              out.push('「CSS・JSの読み込み」を差し込む領域が指定されていません。style.css が読み込まれません。');
+            }
+            if (roles.filter(r => r === 'content').length > 1) {
+              out.push('「本文（セクション）」が複数の領域に指定されています。同じ内容が重複して出力されます。');
+            }
+          }
+        }
         this.sections.forEach((sec, i) => {
           const label = String(i + 1).padStart(2, '0') + ' ' + this.defOf(sec).label + '：';
           const d = sec.data;
@@ -1677,23 +1906,59 @@ document.addEventListener('alpine:init', function () {
           (sec.type === 'cardGrid' && sec.data.cards.some(c => has(c.buttonLabel)))
         );
       },
-      buildHtml() {
-        const body = this.sections.map((sec, i) => {
+      sectionsHtml() {
+        return this.sections.map((sec, i) => {
           const id = 'section-' + String(i + 1).padStart(2, '0');
           const gen = HTMLGEN[sec.type];
           return gen ? gen(sec.data, id) : '';
         }).filter(Boolean).join('\n\n');
-
-        const title = has(this.page.title) ? this.page.title : '無題のランディングページ';
-        const needsJs = this.usedTypes().some(t => JS_PARTS[t]);
-
+      },
+      pageTitle() {
+        return has(this.page.title) ? this.page.title : '無題のランディングページ';
+      },
+      needsJs() {
+        return this.usedTypes().some(t => JS_PARTS[t]);
+      },
+      buildHtml() {
+        return this.usingTemplate() ? this.buildTemplateHtml() : this.buildStandaloneHtml();
+      },
+      /* テンプレートの編集可能領域だけを差し替える。それ以外は1文字も変えない */
+      buildTemplateHtml() {
+        const tpl = this.page.template;
+        const regs = this.templateRegions();
+        let out = '';
+        let cursor = 0;
+        regs.forEach((r, i) => {
+          out += tpl.slice(cursor, r.contentStart);
+          out += this.regionContent(this.roleAt(i), r);
+          cursor = r.contentEnd;
+        });
+        return out + tpl.slice(cursor);
+      },
+      regionContent(role, r) {
+        if (role === 'title') {
+          return '\n<title>' + esc(this.pageTitle()) + '</title>\n';
+        }
+        if (role === 'assets') {
+          const lines = ['<link rel="stylesheet" href="style.css">'];
+          if (this.needsJs()) lines.push('<script defer src="script.js"><\/script>');
+          return '\n' + lines.join('\n') + '\n';
+        }
+        if (role === 'content') {
+          const body = this.sectionsHtml();
+          return body ? '\n' + body + '\n' : '\n';
+        }
+        return r.current;
+      },
+      buildStandaloneHtml() {
+        const body = this.sectionsHtml();
         const lines = [
           '<!DOCTYPE html>',
           '<html lang="' + esc(this.page.lang) + '">',
           '<head>',
           '<meta charset="UTF-8">',
           '<meta name="viewport" content="width=device-width, initial-scale=1">',
-          '<title>' + esc(title) + '</title>',
+          '<title>' + esc(this.pageTitle()) + '</title>',
           '<link rel="stylesheet" href="style.css">',
           '</head>',
           '<body>',
@@ -1703,13 +1968,13 @@ document.addEventListener('alpine:init', function () {
           '</main>',
           ''
         ];
-        if (needsJs) lines.push('<script src="script.js"><\/script>', '');
+        if (this.needsJs()) lines.push('<script src="script.js"><\/script>', '');
         lines.push('</body>', '</html>', '');
         return lines.join('\n');
       },
       buildCss() {
         const used = this.usedTypes();
-        const blocks = [cssBase(this.contentWidthPx())];
+        const blocks = [cssBase(this.contentWidthPx(), !this.usingTemplate())];
         if (this.needsButtonCss()) blocks.push(CSS_BUTTON);
         BASIC_ORDER.concat(LAYOUT_ORDER)
           .forEach(t => { if (used.indexOf(t) !== -1 && CSS_PARTS[t]) blocks.push(CSS_PARTS[t]); });
@@ -1821,9 +2086,14 @@ document.addEventListener('alpine:init', function () {
           const saved = JSON.parse(raw);
           if (!saved || !Array.isArray(saved.sections)) return;
           this.page = Object.assign(
-            { title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH) },
+            {
+              title:'', lang:'ja', contentWidth: String(DEFAULT_CONTENT_WIDTH),
+              outputMode:'standalone', template:'', templateMarker:'編集可能領域', templateRoles:[]
+            },
             saved.page || {}
           );
+          if (!Array.isArray(this.page.templateRoles)) this.page.templateRoles = [];
+          if (this.page.templateRoles.length !== this.templateRegions().length) this.resetRoles();
           /* 保存済みデータに新しい項目が無くても壊れないよう、既定値で補う */
           this.sections = saved.sections
             .filter(sec => sec && DEFS[sec.type])
