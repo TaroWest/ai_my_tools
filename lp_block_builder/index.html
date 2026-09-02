@@ -279,32 +279,38 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 
       <div class="field">
         <label for="outputMode">出力の形式</label>
-        <select id="outputMode" x-model="page.outputMode">
+        <select id="outputMode" x-model="page.outputMode" @change="onModeChange()">
           <option value="standalone">単体のHTMLを出力する</option>
-          <option value="template">テンプレートに差し込んで出力する</option>
+          <option value="custom">オリジナルのテンプレートを利用する</option>
+          <template x-for="p in presetList()" :key="p.id">
+            <option :value="p.id" x-text="p.label"></option>
+          </template>
         </select>
+        <p class="fieldnote" x-show="activePreset()" x-text="activePreset() ? activePreset().note : ''"></p>
       </div>
 
-      <div x-show="page.outputMode === 'template'">
-        <div class="field">
-          <label for="tplMarker">目印コメントの文言<span class="hint">この文言のコメントを2つで1組とみなします</span></label>
-          <input id="tplMarker" type="text" x-model="page.templateMarker" @input="onTemplateChange()" placeholder="編集可能領域">
-        </div>
-        <div class="field">
-          <label for="tplBody">テンプレートHTML<span class="hint">まるごと貼り付けてください</span></label>
-          <textarea id="tplBody" rows="8" x-model="page.template" @input="onTemplateChange()"
-                    placeholder="&lt;!DOCTYPE html&gt; から &lt;/html&gt; まで貼り付け"></textarea>
+      <div x-show="page.outputMode !== 'standalone'">
+        <div x-show="page.outputMode === 'custom'">
+          <div class="field">
+            <label for="tplMarker">目印コメントの文言<span class="hint">この文言のコメントを2つで1組とみなします</span></label>
+            <input id="tplMarker" type="text" x-model="page.templateMarker" @input="onTemplateChange()" placeholder="編集可能領域">
+          </div>
+          <div class="field">
+            <label for="tplBody">テンプレートHTML<span class="hint">まるごと貼り付けてください</span></label>
+            <textarea id="tplBody" rows="8" x-model="page.template" @input="onTemplateChange()"
+                      placeholder="&lt;!DOCTYPE html&gt; から &lt;/html&gt; まで貼り付け"></textarea>
+          </div>
         </div>
 
-        <div class="empty" x-show="!page.template.trim()">
+        <div class="empty" x-show="page.outputMode === 'custom' && !page.template.trim()">
           テンプレートを貼り付けると、編集可能領域を自動で検出します。
         </div>
 
-        <div x-show="page.template.trim()">
+        <div x-show="page.outputMode !== 'custom' || page.template.trim()">
           <div class="warn" x-show="markerCount() === 0">
             <p class="warn__title">目印コメントが見つかりません</p>
             <p style="margin:0;font-size:12px">
-              <span x-text="'「<!-- ' + page.templateMarker + ' -->」'"></span>
+              <span x-text="'「<!-- ' + activeMarker() + ' -->」'"></span>
               という形のコメントが必要です。文言を確認してください。
             </p>
           </div>
@@ -424,6 +430,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
                   <select x-model="sec.data.mediaType">
                     <option value="image">画像</option>
                     <option value="video">動画</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>幅</label>
+                  <select x-model="sec.data.widthMode">
+                    <option value="full">画面幅いっぱいに広げる</option>
+                    <option value="content">コンテンツ幅に合わせる</option>
                   </select>
                 </div>
                 <div class="field">
@@ -840,7 +853,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
           </tr>
           <tr>
             <th scope="row">出力方法</th>
-            <td x-text="usingTemplate() ? 'テンプレートに差し込む' : '単体のHTMLを出力する'"></td>
+            <td x-text="modeLabel()"></td>
           </tr>
           <tr x-show="usingTemplate()">
             <th scope="row">差し込み先の領域</th>
@@ -948,6 +961,78 @@ const DEFS = {
 const BASIC_ORDER  = ['mainVisual','text','image','button'];
 const LAYOUT_ORDER = ['cardGrid','accordion','tabs','carousel','comparisonTable'];
 
+/* =========================================================
+   登録済みテンプレート
+   ここに追記すれば、出力の形式の選択肢として並ぶ。
+   登録作業はソースの編集で行う（画面からの登録フローは持たない）。
+   ========================================================= */
+const PRESET_TEMPLATES = [
+  {
+    id: 'ma',
+    label: '登録済：MA用',
+    note: 'Vポイントサイト用のテンプレート。共通CSS（reset.min.css / common.min.css）とGTMを含む。',
+    marker: '編集可能領域',
+    html: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!--  編集可能領域  -->
+<title>すき家などで使えるお得なクーポン</title>
+<!--  編集可能領域  -->
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+<link rel="icon" type="image/png" href="https://img.tsite.jp/resources/common/logo/_r4vp_icon_48x48.png" />
+<link rel="stylesheet" href="https://web.tsite.jp/ma/common/css/reset.min.css">
+<link rel="stylesheet" href="https://web.tsite.jp/ma/common/css/common.min.css">
+<!--  編集可能領域  -->
+<link rel="stylesheet" href="style.css">
+<!--  編集可能領域  -->
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-574G8W');<\/script>
+<!-- End Google Tag Manager --></head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-574G8W"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) --><header id="header">
+	<div id="head_link">
+		<a href="https://tsite.jp" target="_blank"><img src="https://img.tsite.jp/resources/common/logo/_r4vp_point_342x33.png" title="Vポイントサイト" alt="Vポイントサイト" /></a>
+	</div>
+</header><!-- #header -->
+<div id="Wrapper">
+<!--  編集可能領域  -->
+
+
+<!--  編集可能領域  -->
+</div><!-- #Wrapper -->
+<!-- footer -->
+<footer id="gfooter">
+	<div class="inner">
+		<ul>
+			<li><a href="https://privacy.vpoint.co.jp/privacy-policy/" onclick="dataLayer.push({category:'common',action:'footer',label:'privacy',event:'clickEventTrigger'});" target="_blank">個人に関わる情報の取扱いについて</a></li>
+			<li><a href="https://privacy.vpoint.co.jp/" onclick="dataLayer.push({category:'common',action:'footer',label:'privacycenter',event:'clickEventTrigger'});" target="_blank">プライバシーセンター</a></li>
+			<li><a href="https://privacy.vpoint.co.jp/terms/site-service/" onclick="dataLayer.push({category:'common',action:'footer',label:'pt_agreement',event:'clickEventTrigger'});" target="_blank">Vポイントサイト利用規約</a></li>
+			<li><a href="https://privacy.vpoint.co.jp/terms/" onclick="dataLayer.push({category:'common',action:'footer',label:'web_agreement',event:'clickEventTrigger'});" target="_blank">各種規約</a></li>
+			<li><a href="https://privacy.vpoint.co.jp/data-transfer/" onclick="dataLayer.push({category:'common',action:'footer',label:'privacy_data_transfer',event:'clickEventTrigger'});" target="_blank">利用者情報の外部送信について</a></li>
+		</ul>
+		<ul>
+			<li><a href="https://www.vpoint.co.jp/" onclick="dataLayer.push({category:'common',action:'footer',label:'company_cccmkhd',event:'clickEventTrigger'});" target="_blank">Vポイントマーケティング株式会社</a></li>
+    	<li><a href="https://www.ccclp.co.jp/" onclick="dataLayer.push({category:'common',action:'footer',label:'company_lifepartners',event:'clickEventTrigger'});" target="_blank">CCCライフパートナーズ株式会社</a></li>
+    	<li><a href="https://vpoint.cccbiz.jp/alliance/" onclick="dataLayer.push({category:'common',action:'footer',label:'membership',event:'clickEventTrigger'});" target="_blank">Vポイント加盟店の募集</a></li>
+		</ul>
+	</div>
+	<small>&copy; V POINT MARKETING Co.,Ltd.</small>
+</footer><!-- footer -->
+</body>
+</html>
+`
+  }
+];
+
 const BUTTON_BASE_COLOR = '#dc0000';
 const BUTTON_FONT_SIZE = 24;
 const DEFAULT_CONTENT_WIDTH = 960;
@@ -955,7 +1040,7 @@ const DEFAULT_CONTENT_WIDTH = 960;
 function defaultData(type){
   switch(type){
     case 'mainVisual':
-      return { mediaType:'image', src:'', alt:'', linkUrl:'' };
+      return { mediaType:'image', src:'', alt:'', linkUrl:'', widthMode:'full' };
     case 'text':
       return { heading:'', body:'', align:'left' };
     case 'image':
@@ -1060,12 +1145,13 @@ const ROLE_LABELS = {
 /* ---- セクションごとのHTML生成 ---- */
 const HTMLGEN = {
   mainVisual(d, id){
-    if (!has(d.src)) return wrap('lp-mv', id, '');
+    const attr = ' data-width="' + (d.widthMode === 'content' ? 'content' : 'full') + '"';
+    if (!has(d.src)) return wrap('lp-mv', id, '', attr);
     const media = (d.mediaType === 'video')
       ? '<video src="' + esc(d.src) + '" autoplay muted loop playsinline></video>'
       : '<img src="' + esc(d.src) + '" alt="' + esc(d.alt) + '">';
     const inner = '<div class="lp-mv__media">\n' + ind(linked(media, d.linkUrl), 2) + '\n</div>';
-    return wrap('lp-mv', id, inner);
+    return wrap('lp-mv', id, inner, attr);
   },
   text(d, id){
     const parts = [];
@@ -1345,9 +1431,15 @@ const CSS_BUTTON = `/* ---------- ボタン（共通デザイン） ---------- *
 
 const CSS_PARTS = {
   mainVisual: `/* ---------- メインビジュアル ---------- */
-.lp-mv { max-width: none; padding: 0; }
+/* full＝画面幅いっぱい / content＝他のセクションと同じコンテンツ幅にそろえる */
+.lp-mv { padding: 0; }
+.lp-mv[data-width="full"] { max-width: none; }
+.lp-mv[data-width="content"] { max-width: var(--lp-content-width); padding: 0 20px; }
 .lp-mv__media img,
 .lp-mv__media video { width: 100%; object-fit: cover; }
+@media (max-width: 768px) {
+  .lp-mv[data-width="content"] { padding: 0 16px; }
+}
 `,
   text: `/* ---------- テキスト ---------- */
 .lp-text__body p { margin: 0 0 1.4em; }
@@ -1600,7 +1692,7 @@ const JS_PARTS = {
 /* =========================================================
    Alpine コンポーネント
    ========================================================= */
-const STORAGE_KEY = 'lp-block-builder-session-v2';
+const STORAGE_KEY = 'lp-block-builder-session-v3';
 
 document.addEventListener('alpine:init', function () {
   Alpine.data('builder', function () {
@@ -1645,23 +1737,47 @@ document.addEventListener('alpine:init', function () {
       alignLabel(a) { return a === 'center' ? '中央揃え' : '左揃え'; },
 
       /* ---- テンプレート ---- */
+      presetList() { return PRESET_TEMPLATES; },
+      activePreset() {
+        return PRESET_TEMPLATES.find(p => p.id === this.page.outputMode) || null;
+      },
+      /* 出力の形式に応じて、使うテンプレート本文と目印文言を切り替える */
+      activeTemplate() {
+        const preset = this.activePreset();
+        if (preset) return preset.html;
+        return this.page.outputMode === 'custom' ? this.page.template : '';
+      },
+      activeMarker() {
+        const preset = this.activePreset();
+        return preset ? preset.marker : this.page.templateMarker;
+      },
+      modeLabel() {
+        const preset = this.activePreset();
+        if (preset) return preset.label;
+        return this.page.outputMode === 'custom'
+          ? 'オリジナルのテンプレートを利用する'
+          : '単体のHTMLを出力する';
+      },
       usingTemplate() {
-        return this.page.outputMode === 'template'
-          && has(this.page.template)
+        return this.page.outputMode !== 'standalone'
+          && has(this.activeTemplate())
           && this.templateRegions().length > 0;
       },
-      markerCount() { return findMarkers(this.page.template, this.page.templateMarker).length; },
-      templateRegions() { return findRegions(this.page.template, this.page.templateMarker); },
+      markerCount() { return findMarkers(this.activeTemplate(), this.activeMarker()).length; },
+      templateRegions() { return findRegions(this.activeTemplate(), this.activeMarker()); },
       /* 領域の数が変わったときだけ、差し込む内容を自動で判定し直す */
       onTemplateChange() {
         const regs = this.templateRegions();
         if (this.page.templateRoles.length !== regs.length) this.resetRoles();
       },
+      /* 出力の形式を切り替えたときは、必ず判定し直す */
+      onModeChange() { this.resetRoles(); },
       resetRoles() {
+        const tpl = this.activeTemplate();
         const regs = this.templateRegions();
         let contentTaken = false;
         this.page.templateRoles = regs.map(r => {
-          let role = guessRole(r, this.page.template);
+          let role = guessRole(r, tpl);
           if (role === 'content') {
             if (contentTaken) role = 'none';
             else contentTaken = true;
@@ -1672,7 +1788,7 @@ document.addEventListener('alpine:init', function () {
       roleAt(i) { return this.page.templateRoles[i] || 'none'; },
       roleLabel(role) { return ROLE_LABELS[role] || ROLE_LABELS.none; },
       regionPlace(r) {
-        const headEnd = this.page.template.search(/<\/head>/i);
+        const headEnd = this.activeTemplate().search(/<\/head>/i);
         if (headEnd === -1) return '位置：不明';
         return r.openStart < headEnd ? 'head内' : 'body内';
       },
@@ -1746,6 +1862,7 @@ document.addEventListener('alpine:init', function () {
           case 'mainVisual':
             return [{ group:'', rows: [
               ['メディア種別', d.mediaType === 'video' ? '動画' : '画像'],
+              ['幅', d.widthMode === 'content' ? 'コンテンツ幅に合わせる' : '画面幅いっぱいに広げる'],
               ['メディアのURL / パス', v(d.src)],
               ['代替テキスト', d.mediaType === 'video' ? '（動画のため対象外）' : v(d.alt)],
               ['リンク先', v(d.linkUrl)]
@@ -1839,8 +1956,9 @@ document.addEventListener('alpine:init', function () {
         if (isNaN(w) || w < 320 || w > 1920) {
           out.push('コンテンツ幅が未入力か範囲外です（320〜1920px）。' + DEFAULT_CONTENT_WIDTH + 'pxとして出力します。');
         }
-        if (this.page.outputMode === 'template') {
-          if (!has(this.page.template)) {
+        if (this.page.outputMode !== 'standalone') {
+          const isCustom = this.page.outputMode === 'custom';
+          if (isCustom && !has(this.page.template)) {
             out.push('テンプレートが貼り付けられていません。単体のHTMLとして出力します。');
           } else if (this.markerCount() === 0) {
             out.push('テンプレートに目印コメントが見つかりません。単体のHTMLとして出力します。');
@@ -1924,7 +2042,7 @@ document.addEventListener('alpine:init', function () {
       },
       /* テンプレートの編集可能領域だけを差し替える。それ以外は1文字も変えない */
       buildTemplateHtml() {
-        const tpl = this.page.template;
+        const tpl = this.activeTemplate();
         const regs = this.templateRegions();
         let out = '';
         let cursor = 0;
@@ -2092,6 +2210,10 @@ document.addEventListener('alpine:init', function () {
             },
             saved.page || {}
           );
+          /* 旧バージョンの保存値との互換 */
+          if (this.page.outputMode === 'template') this.page.outputMode = 'custom';
+          const known = ['standalone', 'custom'].concat(PRESET_TEMPLATES.map(p => p.id));
+          if (known.indexOf(this.page.outputMode) === -1) this.page.outputMode = 'standalone';
           if (!Array.isArray(this.page.templateRoles)) this.page.templateRoles = [];
           if (this.page.templateRoles.length !== this.templateRegions().length) this.resetRoles();
           /* 保存済みデータに新しい項目が無くても壊れないよう、既定値で補う */
