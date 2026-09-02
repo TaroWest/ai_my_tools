@@ -421,6 +421,25 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
         </div>
         <div class="editor__body">
 
+          <div class="grid2">
+            <div class="field" x-show="sec.type !== 'mainVisual'">
+              <label>セクションの余白<span class="hint">前後のセクションとの間隔</span></label>
+              <select x-model="sec.data.space">
+                <option value="wide">広め</option>
+                <option value="normal">標準</option>
+                <option value="narrow">狭め</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>背景色<span class="hint">画面の左右いっぱいに敷かれます</span></label>
+              <select x-model="sec.data.bg">
+                <option value="none">なし（白）</option>
+                <option value="gray">薄いグレー</option>
+                <option value="tint">淡い赤（ボタン色系）</option>
+              </select>
+            </div>
+          </div>
+
           <!-- メインビジュアル -->
           <template x-if="sec.type === 'mainVisual'">
             <div>
@@ -1040,24 +1059,24 @@ const DEFAULT_CONTENT_WIDTH = 960;
 function defaultData(type){
   switch(type){
     case 'mainVisual':
-      return { mediaType:'image', src:'', alt:'', linkUrl:'', widthMode:'full' };
+      return { mediaType:'image', src:'', alt:'', linkUrl:'', widthMode:'full', bg:'none' };
     case 'text':
-      return { heading:'', body:'', align:'left' };
+      return { heading:'', body:'', align:'left', space:'normal', bg:'none' };
     case 'image':
-      return { heading:'', src:'', alt:'', linkUrl:'', caption:'', align:'center' };
+      return { heading:'', src:'', alt:'', linkUrl:'', caption:'', align:'center', space:'normal', bg:'none' };
     case 'button':
-      return { label:'', url:'', align:'center', style:'fill' };
+      return { label:'', url:'', align:'center', style:'fill', space:'normal', bg:'none' };
     case 'cardGrid':
-      return { heading:'', columns:'3', align:'left', cards:[ blankCard(), blankCard(), blankCard() ] };
+      return { heading:'', columns:'3', align:'left', space:'normal', bg:'none', cards:[ blankCard(), blankCard(), blankCard() ] };
     case 'accordion':
-      return { heading:'', align:'left', items:[ {title:'',body:''}, {title:'',body:''}, {title:'',body:''} ] };
+      return { heading:'', align:'left', space:'normal', bg:'none', items:[ {title:'',body:''}, {title:'',body:''}, {title:'',body:''} ] };
     case 'tabs':
-      return { heading:'', align:'left', items:[ {label:'',body:''}, {label:'',body:''} ] };
+      return { heading:'', align:'left', space:'normal', bg:'none', items:[ {label:'',body:''}, {label:'',body:''} ] };
     case 'carousel':
-      return { heading:'', align:'center', autoplay:false, interval:'5000',
+      return { heading:'', align:'center', space:'normal', bg:'none', autoplay:false, interval:'5000',
                slides:[ blankSlide(), blankSlide(), blankSlide() ] };
     case 'comparisonTable':
-      return { heading:'', cornerLabel:'項目', align:'left', headers:['',''],
+      return { heading:'', cornerLabel:'項目', align:'left', space:'normal', bg:'none', headers:['',''],
                rows:[ {label:'',values:['','']}, {label:'',values:['','']}, {label:'',values:['','']} ] };
     default:
       return {};
@@ -1092,6 +1111,13 @@ function linked(tag, url){
 /* テキスト配置の属性（left / center のみ許可。既定は left） */
 function alignAttr(align){
   return ' data-align="' + (align === 'center' ? 'center' : 'left') + '"';
+}
+/* セクション共通の属性（余白・背景色）。既定値のときは属性を出さない */
+function extraAttrs(d){
+  let out = '';
+  if (d.space === 'wide' || d.space === 'narrow') out += ' data-space="' + d.space + '"';
+  if (d.bg === 'gray' || d.bg === 'tint') out += ' data-bg="' + d.bg + '"';
+  return out;
 }
 
 /* =========================================================
@@ -1145,7 +1171,7 @@ const ROLE_LABELS = {
 /* ---- セクションごとのHTML生成 ---- */
 const HTMLGEN = {
   mainVisual(d, id){
-    const attr = ' data-width="' + (d.widthMode === 'content' ? 'content' : 'full') + '"';
+    const attr = ' data-width="' + (d.widthMode === 'content' ? 'content' : 'full') + '"' + extraAttrs(d);
     if (!has(d.src)) return wrap('lp-mv', id, '', attr);
     const media = (d.mediaType === 'video')
       ? '<video src="' + esc(d.src) + '" autoplay muted loop playsinline></video>'
@@ -1157,7 +1183,7 @@ const HTMLGEN = {
     const parts = [];
     if (has(d.heading)) parts.push('<h2 class="lp-heading">' + esc(d.heading) + '</h2>');
     if (has(d.body))    parts.push('<div class="lp-text__body">\n' + ind(paragraphs(d.body), 2) + '\n</div>');
-    return wrap('lp-text', id, parts.join('\n'), alignAttr(d.align));
+    return wrap('lp-text', id, parts.join('\n'), alignAttr(d.align) + extraAttrs(d));
   },
   image(d, id){
     const parts = [];
@@ -1170,12 +1196,12 @@ const HTMLGEN = {
       fig.push('</figure>');
       parts.push(fig.join('\n'));
     }
-    return wrap('lp-image', id, parts.join('\n'), alignAttr(d.align));
+    return wrap('lp-image', id, parts.join('\n'), alignAttr(d.align) + extraAttrs(d));
   },
   button(d, id){
     const style = (d.style === 'outline') ? 'outline' : 'fill';
     const place = (d.align === 'left') ? 'left' : (d.align === 'right' ? 'right' : 'center');
-    const attr = ' data-align="' + place + '"';
+    const attr = ' data-align="' + place + '"' + extraAttrs(d);
     if (!has(d.label)) return wrap('lp-buttonarea', id, '', attr);
     const a = '<a class="lp-btn lp-btn--' + style + '" href="' + esc(has(d.url) ? d.url : '#') + '">' + esc(d.label) + '</a>';
     return wrap('lp-buttonarea', id, a, attr);
@@ -1196,7 +1222,7 @@ const HTMLGEN = {
       return '  <li class="lp-card">\n' + ind(inner.join('\n'), 4) + '\n  </li>';
     }).join('\n');
     parts.push('<ul class="lp-cards__grid" data-columns="' + esc(d.columns) + '">\n' + items + '\n</ul>');
-    return wrap('lp-cards', id, parts.join('\n'), alignAttr(d.align));
+    return wrap('lp-cards', id, parts.join('\n'), alignAttr(d.align) + extraAttrs(d));
   },
   accordion(d, id){
     const parts = [];
@@ -1219,7 +1245,7 @@ const HTMLGEN = {
       ].join('\n');
     }).join('\n');
     parts.push('<div class="lp-accordion__list">\n' + items + '\n</div>');
-    return wrap('lp-accordion', id, parts.join('\n'), alignAttr(d.align));
+    return wrap('lp-accordion', id, parts.join('\n'), alignAttr(d.align) + extraAttrs(d));
   },
   tabs(d, id){
     const parts = [];
@@ -1237,7 +1263,7 @@ const HTMLGEN = {
       const inner = has(it.body) ? ind(paragraphs(it.body), 2) : '';
       parts.push(inner ? open + '\n' + inner + '\n</div>' : open + '</div>');
     });
-    return wrap('lp-tabs', id, parts.join('\n'), alignAttr(d.align));
+    return wrap('lp-tabs', id, parts.join('\n'), alignAttr(d.align) + extraAttrs(d));
   },
   carousel(d, id){
     const parts = [];
@@ -1265,7 +1291,7 @@ const HTMLGEN = {
     parts.push('<button class="lp-carousel__nav lp-carousel__nav--prev" type="button" aria-label="前のスライド">&#8249;</button>');
     parts.push('<button class="lp-carousel__nav lp-carousel__nav--next" type="button" aria-label="次のスライド">&#8250;</button>');
     parts.push('<div class="lp-carousel__dots">\n' + dots + '\n</div>');
-    const attr = alignAttr(d.align) + ' data-autoplay="' + (d.autoplay ? 'true' : 'false') + '" data-interval="' + esc(String(d.interval || 5000)) + '"';
+    const attr = alignAttr(d.align) + extraAttrs(d) + ' data-autoplay="' + (d.autoplay ? 'true' : 'false') + '" data-interval="' + esc(String(d.interval || 5000)) + '"';
     return wrap('lp-carousel', id, parts.join('\n'), attr);
   },
   comparisonTable(d, id){
@@ -1288,14 +1314,19 @@ const HTMLGEN = {
       '  </table>',
       '</div>'
     ].join('\n'));
-    return wrap('lp-compare', id, parts.join('\n'), alignAttr(d.align));
+    return wrap('lp-compare', id, parts.join('\n'), alignAttr(d.align) + extraAttrs(d));
   }
 };
 
+/* セクションは「全幅の外枠」＋「コンテンツ幅の内枠」の2重構造。
+   背景色を画面いっぱいに敷きつつ、中身はコンテンツ幅に収めるため。 */
 function wrap(cls, id, inner, extraAttr){
   const attr = extraAttr || '';
-  if (!inner || !inner.trim()) return '<section class="lp-section ' + cls + '" id="' + id + '"' + attr + '></section>';
-  return '<section class="lp-section ' + cls + '" id="' + id + '"' + attr + '>\n' + ind(inner, 2) + '\n</section>';
+  const open = '<section class="lp-section ' + cls + '" id="' + id + '"' + attr + '>';
+  if (!inner || !inner.trim()) {
+    return open + '\n  <div class="lp-section__inner"></div>\n</section>';
+  }
+  return open + '\n  <div class="lp-section__inner">\n' + ind(inner, 4) + '\n  </div>\n</section>';
 }
 
 /* ---- CSS ---- */
@@ -1325,19 +1356,35 @@ body {
 }
 
 ${globals}
-/* コンテンツ幅：これを上限に、画面が狭いときは自動で縮む */
+/* セクションは全幅。背景色を画面いっぱいに敷けるようにしている */
 .lp-section {
+  padding: 64px 20px;
+}
+
+/* 中身はコンテンツ幅に収める。画面が狭いときは自動で縮む */
+.lp-section__inner {
   max-width: var(--lp-content-width);
   margin: 0 auto;
-  padding: 64px 20px;
   line-height: 1.8;
 }
+
+/* セクションの余白 */
+.lp-section[data-space="wide"] { padding-top: 96px; padding-bottom: 96px; }
+.lp-section[data-space="narrow"] { padding-top: 28px; padding-bottom: 28px; }
+
+/* セクションの背景色 */
+.lp-section[data-bg="gray"] { background: #f5f6f8; }
+.lp-section[data-bg="tint"] { background: #fdf1f1; }
 
 .lp-section[data-align="left"] { text-align: left; }
 .lp-section[data-align="center"] { text-align: center; }
 
 .lp-section img,
 .lp-section video { max-width: 100%; height: auto; display: block; }
+
+/* 画像はブロック要素のため text-align では中央にならない。左右マージンで中央寄せする */
+.lp-section[data-align="center"] img,
+.lp-section[data-align="center"] video { margin-left: auto; margin-right: auto; }
 
 .lp-section [hidden] { display: none !important; }
 
@@ -1353,6 +1400,8 @@ ${globals}
 
 @media (max-width: 768px) {
   .lp-section { padding: 44px 16px; }
+  .lp-section[data-space="wide"] { padding-top: 64px; padding-bottom: 64px; }
+  .lp-section[data-space="narrow"] { padding-top: 20px; padding-bottom: 20px; }
   .lp-heading { font-size: 22px; margin-bottom: 20px; }
 }
 
@@ -1433,12 +1482,12 @@ const CSS_PARTS = {
   mainVisual: `/* ---------- メインビジュアル ---------- */
 /* full＝画面幅いっぱい / content＝他のセクションと同じコンテンツ幅にそろえる */
 .lp-mv { padding: 0; }
-.lp-mv[data-width="full"] { max-width: none; }
-.lp-mv[data-width="content"] { max-width: var(--lp-content-width); padding: 0 20px; }
+.lp-mv[data-width="full"] .lp-section__inner { max-width: none; }
+.lp-mv[data-width="content"] .lp-section__inner { padding: 0 20px; }
 .lp-mv__media img,
-.lp-mv__media video { width: 100%; object-fit: cover; }
+.lp-mv__media video { width: 100%; }
 @media (max-width: 768px) {
-  .lp-mv[data-width="content"] { padding: 0 16px; }
+  .lp-mv[data-width="content"] .lp-section__inner { padding: 0 16px; }
 }
 `,
   text: `/* ---------- テキスト ---------- */
@@ -1543,7 +1592,8 @@ const CSS_PARTS = {
 .lp-tabs__panel p:last-child { margin-bottom: 0; }
 `,
   carousel: `/* ---------- カルーセル ---------- */
-.lp-carousel { position: relative; }
+/* 左右ボタンはコンテンツ幅の内枠を基準に配置する */
+.lp-carousel .lp-section__inner { position: relative; }
 .lp-carousel__viewport { overflow: hidden; }
 .lp-carousel__track {
   list-style: none;
@@ -1854,7 +1904,27 @@ document.addEventListener('alpine:init', function () {
       },
 
       /* ---- 確認画面 ---- */
+      spaceLabel(s) {
+        if (s === 'wide') return '広め';
+        if (s === 'narrow') return '狭め';
+        return '標準';
+      },
+      bgLabel(b) {
+        if (b === 'gray') return '薄いグレー';
+        if (b === 'tint') return '淡い赤（ボタン色系）';
+        return 'なし（白）';
+      },
+      /* 確認画面：共通設定を先頭ブロックに足して返す */
       reviewOf(sec) {
+        const blocks = this.reviewBody(sec);
+        const d = sec.data;
+        const common = [];
+        if (sec.type !== 'mainVisual') common.push(['セクションの余白', this.spaceLabel(d.space)]);
+        common.push(['背景色', this.bgLabel(d.bg)]);
+        if (blocks.length) blocks[0].rows = blocks[0].rows.concat(common);
+        return blocks;
+      },
+      reviewBody(sec) {
         const d = sec.data;
         const v = x => (has(x) ? String(x) : '');
         const al = ['テキストの配置', this.alignLabel(d.align)];
